@@ -193,8 +193,7 @@ def main():
     parser = setup_argument_parser()
     args = parser.parse_args()
     
-    data, start, stop = get_samples(args.freq, args.bins, args.gain, args.rate, args.repeats, args.device)
-    print(data)
+    data, start, stop = get_samples(args.freq[0], args.bins, args.gain, args.rate, args.repeats, args.device)
     print(data, file=args.output)
 
         
