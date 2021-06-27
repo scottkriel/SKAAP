@@ -22,20 +22,8 @@ def device_info(soapy_args=''):
     try:
         device = simplesoapy.SoapyDevice(soapy_args)
         text.append('Selected device: {}'.format(device.hardware))
-        text.append('  Available RX channels:')
-        text.append('    {}'.format(', '.join(str(x) for x in device.list_channels())))
-        text.append('  Available antennas:')
-        text.append('    {}'.format(', '.join(device.list_antennas())))
-        text.append('  Available tunable elements:')
-        text.append('    {}'.format(', '.join(device.list_frequencies())))
         text.append('  Available amplification elements:')
         text.append('    {}'.format(', '.join(device.list_gains())))
-        text.append('  Available device settings:')
-        for key, s in device.list_settings().items():
-            text.append(wrap('{} ... {} - {} (default: {})'.format(key, s['name'], s['description'], s['value'])))
-        text.append('  Available stream arguments:')
-        for key, s in device.list_stream_args().items():
-            text.append(wrap('{} ... {} - {} (default: {})'.format(key, s['name'], s['description'], s['value'])))
         text.append('  Allowed gain range [dB]:')
         text.append('    {:.2f} - {:.2f}'.format(*device.get_gain_range()))
         text.append('  Allowed frequency range [MHz]:')
@@ -48,17 +36,6 @@ def device_info(soapy_args=''):
             else:
                 rates.append('{:.2f} - {:.2f}'.format(r[0] / 1e6, r[1] / 1e6))
         text.append(wrap(', '.join(rates)))
-        text.append('  Allowed bandwidths [MHz]:')
-        bandwidths = []
-        for b in device.list_bandwidths():
-            if b[0] == b[1]:
-                bandwidths.append('{:.2f}'.format(b[0] / 1e6))
-            else:
-                bandwidths.append('{:.2f} - {:.2f}'.format(b[0] / 1e6, b[1] / 1e6))
-        if bandwidths:
-            text.append(wrap(', '.join(bandwidths)))
-        else:
-            text.append('    N/A')
     except RuntimeError:
         device = None
         text.append('No devices found!')
@@ -66,7 +43,6 @@ def device_info(soapy_args=''):
 
 def main():
     device, device_text = device_info
-    for mm in device_text:
-        print(mm)
+    print(device_text)
 if __name__ == '__main__':
     main()
