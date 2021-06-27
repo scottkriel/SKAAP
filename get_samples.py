@@ -74,8 +74,8 @@ def setup_argument_parser():
                             'can be followed by a k, M or G multiplier (default: %(default)s)')
     
     output_group = main_title.add_mutually_exclusive_group()
-    output_group.add_argument('-O', '--output', metavar='FILE', default='output.csv',
-                              help='output to file (incompatible with --output-fd, default is output.csv)')
+    output_group.add_argument('-O', '--output', metavar='FILE', default='output.txt',
+                              help='output to file (incompatible with --output-fd, default is output.txt)')
     output_group.add_argument('--output-fd', metavar='NUM', type=int, default=None,
                               help='output to existing file descriptor (incompatible with -O)')
     
