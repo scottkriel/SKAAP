@@ -5,16 +5,7 @@ Created on Fri Jun 25 22:49:16 2021
 @author: Scott Kriel
 Description: Script to fetch info on SDR device
 """
-import simplesoapy, textwrap, os, sys
-
-def wrap(text, indent='    '):
-    """Wrap text to terminal width with default indentation"""
-    wrapper = textwrap.TextWrapper(
-        width=int(os.environ.get('COLUMNS', 80)),
-        initial_indent=indent,
-        subsequent_indent=indent
-    )
-    return '\n'.join(wrapper.wrap(text))
+import simplesoapy
 
 def device_info(soapy_args=''):
     """Returns info about selected SoapySDR device"""
@@ -35,7 +26,7 @@ def device_info(soapy_args=''):
                 rates.append('{:.2f}'.format(r[0] / 1e6))
             else:
                 rates.append('{:.2f} - {:.2f}'.format(r[0] / 1e6, r[1] / 1e6))
-        text.append(wrap(', '.join(rates)))
+        text.append(', '.join(rates))
     except RuntimeError:
         device = None
         text.append('No devices found!')
@@ -43,7 +34,6 @@ def device_info(soapy_args=''):
 
 def main():
     device, device_text = device_info()
-    for mm in device_text:
-        print(mm)
+    print(device_text)
 if __name__ == '__main__':
     main()
