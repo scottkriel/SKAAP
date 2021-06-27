@@ -192,10 +192,9 @@ def main():
     # Parse command line arguments
     parser = setup_argument_parser()
     args = parser.parse_args()
-    
     data, start, stop = get_samples(args.freq[0], args.bins, args.gain, args.rate, args.repeats, args.device)
-    print(data)
     np.savetxt(args.output,data,delimiter=',')
+    print(data)
     
 
         
