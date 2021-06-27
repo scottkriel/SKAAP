@@ -39,6 +39,17 @@ def freq_or_freq_range(string):
     """Convert string with freq. or freq. range to list of floats"""
     return [float_with_multiplier(f) for f in string.split(':')]
 
+def specific_gains(string):
+    """Convert string with gains of individual amplification elements to dict"""
+    if not string:
+        return {}
+
+    gains = {}
+    for gain in string.split(','):
+        amp_name, value = gain.split('=')
+        gains[amp_name.strip()] = float(value.strip())
+    return gains
+
 def setup_argument_parser():
     """Setup command line parser"""
     # Fix help formatter width
