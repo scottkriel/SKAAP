@@ -74,8 +74,8 @@ def setup_argument_parser():
                             'can be followed by a k, M or G multiplier (default: %(default)s)')
     
     output_group = main_title.add_mutually_exclusive_group()
-    output_group.add_argument('-O', '--output', metavar='FILE', type=argparse.FileType('w'), default=sys.stdout,
-                              help='output to file (incompatible with --output-fd, default is stdout)')
+    output_group.add_argument('-O', '--output', metavar='FILE', default='output.csv',
+                              help='output to file (incompatible with --output-fd, default is output.csv)')
     output_group.add_argument('--output-fd', metavar='NUM', type=int, default=None,
                               help='output to existing file descriptor (incompatible with -O)')
     
@@ -194,7 +194,9 @@ def main():
     args = parser.parse_args()
     
     data, start, stop = get_samples(args.freq[0], args.bins, args.gain, args.rate, args.repeats, args.device)
-    print(data, file=args.output)
+    print(data)
+    np.savetxt(args.output,data,delimiter=',')
+    
 
         
     
