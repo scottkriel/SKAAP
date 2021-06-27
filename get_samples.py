@@ -150,9 +150,9 @@ def get_samples(f0, N, gain, sampleRate, repeats, pol):
         print(err)
     # Initialise buffer for reading
     buffer_size=sdr.getStreamMTU(rxStream)
-    buff = zeros(N, np.complex64)
+    buff = np.empty(N, np.complex64)
     #print('Buffer size: '+str(sys.getsizeof(buff)))
-    data = zeros([N, repeats], np.complex64)
+    data = np.empty([N, repeats], np.complex64)
     # Store start time
     start=time.time()
     # Read stream
