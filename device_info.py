@@ -42,7 +42,7 @@ def device_info(soapy_args=''):
     return (device, '\n'.join(text))
 
 def main():
-    device, device_text = device_info
+    device, device_text = device_info()
     print(device_text)
 if __name__ == '__main__':
     main()
