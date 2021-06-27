@@ -5,7 +5,7 @@ Created on Fri Jun 25 22:49:16 2021
 @author: Scott Kriel
 Description: Script to fetch info on SDR device
 """
-import simplesoapy, textwrap, os
+import simplesoapy, textwrap, os, sys
 
 def wrap(text, indent='    '):
     """Wrap text to terminal width with default indentation"""
@@ -43,6 +43,6 @@ def device_info(soapy_args=''):
 
 def main():
     device, device_text = device_info()
-    print(device_text)
+    print(sys.stdout(device_text))
 if __name__ == '__main__':
     main()
