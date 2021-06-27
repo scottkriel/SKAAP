@@ -30,7 +30,7 @@ def device_info(soapy_args=''):
     except RuntimeError:
         device = None
         text.append('No devices found!')
-    return (device, '\n'.join(text))
+    return (device, text)
 
 def main():
     device, device_text = device_info()
