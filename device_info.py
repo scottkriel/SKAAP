@@ -43,6 +43,7 @@ def device_info(soapy_args=''):
 
 def main():
     device, device_text = device_info()
-    print(sys.stdout(device_text))
+    for mm in device:
+        print(mm)
 if __name__ == '__main__':
     main()
