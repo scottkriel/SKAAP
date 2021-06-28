@@ -144,7 +144,7 @@ def get_samples(f0, N, gain, sampleRate, repeats, pol):
 
     # Setup stream. Give it time to setup before activating
     rxStream = sdr.setupStream(SOAPY_SDR_RX, SOAPY_SDR_CF32)
-    time.sleep(0.1)
+    time.sleep(0.2)
     err = sdr.activateStream(rxStream)
     if err!=0:
         print(err)
