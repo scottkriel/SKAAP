@@ -13,12 +13,9 @@ def device_info(soapy_args=''):
     try:
         device = simplesoapy.SoapyDevice(soapy_args)
         text.append('Selected device: {}'.format(device.hardware))
-        text.append('  Available amplification elements:')
-        text.append('    {}'.format(', '.join(device.list_gains())))
-        text.append('  Allowed gain range [dB]:')
-        text.append('    {:.2f} - {:.2f}'.format(*device.get_gain_range()))
-        text.append('  Allowed frequency range [MHz]:')
-        text.append('    {:.2f} - {:.2f}'.format(*[x / 1e6 for x in device.get_frequency_range()]))
+        text.append('  Available amplification elements: {}'.format(', '.join(device.list_gains())))
+        text.append('  Allowed gain range [dB]: {:.2f} - {:.2f}'.format(*device.get_gain_range()))
+        text.append('  Allowed frequency range [MHz]: {:.2f} - {:.2f}'.format(*[x / 1e6 for x in device.get_frequency_range()]))
         text.append('  Allowed sample rates [MHz]:')
         rates = []
         for r in device.list_sample_rates():
@@ -26,7 +23,7 @@ def device_info(soapy_args=''):
                 rates.append('{:.2f}'.format(r[0] / 1e6))
             else:
                 rates.append('{:.2f} - {:.2f}'.format(r[0] / 1e6, r[1] / 1e6))
-        text.append(', '.join(rates))
+        text.append('  Allowed sample rates [MHz]: {}'.format(', '.join(rates)))
     except RuntimeError:
         device = None
         text.append('No devices found!')
