@@ -22,7 +22,7 @@ def main():
     # Read Temp.
     humidity, temperature = Adafruit_DHT.read_retry(sensor, DHT_DATA_PIN)
     try:
-        print('Temp: {0:0.1f} C \nHumidity: {1:0.1f} %'.format(temperature,humidity))
+        print('{0:0.1f} C\n{1:0.1f} %'.format(temperature,humidity))
     except:
         print('Could not read Temperature')
   
