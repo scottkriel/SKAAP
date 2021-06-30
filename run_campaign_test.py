@@ -252,8 +252,8 @@ def read_config(campaignPath):
 def main():
     # Parse command line arguments
     parser = setup_argument_parser()
-    args = parser.parse_args()
-
+    args = parser.parse_args(['--gain=15.0'])
+    args = parser.parse_args(['--output=output.txt']+sys.argv[1:])
     # Setup logging
     if args.quiet:
         log_level = logging.WARNING

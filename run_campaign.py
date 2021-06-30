@@ -318,7 +318,7 @@ def main():
     # Define paths to campaign
     campaignPath = os.getcwd()+'/campaign'
     # Overide necessary args to acheive required campaign behaviour
-    args.output = campaignPath+'/output.txt'
+    args.output = open(campaignPath+'/output.txt', "w", encoding="utf-8")
     args.runs = 1
    
     # Setup logging
