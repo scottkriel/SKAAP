@@ -284,13 +284,32 @@ def setup_argument_parser():
 
     return parser
 
-class ConfigEncoder(json.JSONEncoder):
+# Start of classes/functions written by Scott Kriel
+class JSONEncoder(json.JSONEncoder):
      def default(self, obj):
-         if isinstance(obj, ):
-             return [obj.real, obj.imag]
+         if isinstance(obj, type(sys.stdout)):
+             return str(obj)
          # Let the base class default method raise the TypeError
          return json.JSONEncoder.default(self, obj)
+     
+def write_config(args, campaignPath):
+    configFilepath = campaignPath+'/CONFIG.txt'     # Full path of config text file 
+    configDict = vars(args) # Convert arg type to dictionary         
+    
+    print(args)
+    print(configDict)
+      
+    with open(configFilepath, 'w') as fileID:
+        fileID.write(json.dumps(configDict, cls=JSONEncoder))   # Write config dict to json file using custom JSONencoder
 
+def read_config(campaignPath):    
+    # Read back the config file for error checking 
+    configFilepath = campaignPath+'/CONFIG.txt'     # Full path of config text file 
+    fileID = open(configFilepath, "r")
+    configContents = fileID.read()
+    configDictIn = json.loads(configContents)
+    fileID.close()    
+    return configDictIn
 
 def main():
     # Parse command line arguments
@@ -379,38 +398,23 @@ def main():
             parser.error('argument --fft-window: --fft-window-param is required when using kaiser or tukey windows')
         args.fft_window = (args.fft_window, args.fft_window_param)
     
-    print('args')
-    print(args)
-    argsDict = vars(args)
-    print('argsDict)
-    print(argsDict)
-    print('args')
-    print(args)
-    configFile = 'CONFIG.txt'
-    if type(argsDict['output'])!=str:
-        argsDict['output'] = str(argsDict['output'])
-             
-    with open(argsFilename, 'w') as fileID:
-        fileID.write(json.dumps(argsDict))            
-    fileIDin = open(argsFilename, "r")
-    contents = fileIDin.read()
-    dictionary = json.loads(contents)
-    fileIDin.close()    
-    # with open(argsFilename, 'w') as f: 
-        #for key, value in argsDict.items(): 
-            #f.write('%s:%s\n' % (key, value))
+    campaignPath = os.getcwd()+'/campaign'
+    write_config(args, campaignPath)
+    configDictIn = read_config(campaignPath)
+    print(configDictIn)
+   
     
 
-    # Start frequency sweep
-    sdr.sweep(
-        args.freq[0], args.freq[1], args.bins, args.repeats,
-        runs=args.runs, time_limit=args.elapsed, overlap=args.overlap, crop=args.crop,
-        fft_window=args.fft_window, fft_overlap=args.fft_overlap / 100, log_scale=not args.linear,
-        remove_dc=args.remove_dc, detrend=args.detrend if args.detrend != 'none' else None,
-        lnb_lo=args.lnb_lo, tune_delay=args.tune_delay, reset_stream=args.reset_stream,
-        base_buffer_size=args.buffer_size, max_buffer_size=args.max_buffer_size,
-        max_threads=args.max_threads, max_queue_size=args.max_queue_size
-    )
+    # # Start frequency sweep
+    # sdr.sweep(
+    #     args.freq[0], args.freq[1], args.bins, args.repeats,
+    #     runs=args.runs, time_limit=args.elapsed, overlap=args.overlap, crop=args.crop,
+    #     fft_window=args.fft_window, fft_overlap=args.fft_overlap / 100, log_scale=not args.linear,
+    #     remove_dc=args.remove_dc, detrend=args.detrend if args.detrend != 'none' else None,
+    #     lnb_lo=args.lnb_lo, tune_delay=args.tune_delay, reset_stream=args.reset_stream,
+    #     base_buffer_size=args.buffer_size, max_buffer_size=args.max_buffer_size,
+    #     max_threads=args.max_threads, max_queue_size=args.max_queue_size
+    # )
 
 
 if __name__ == '__main__':

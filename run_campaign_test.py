@@ -12,8 +12,8 @@ Description:    Wrapper based on https://github.com/xmikos/soapy_power/blob/mast
 import os, sys, logging, argparse, re, shutil, textwrap
 from soapypower import writer
 from soapypower.version import __version__
-import ast
 import json
+
 
 logger = logging.getLogger(__name__)
 re_float_with_multiplier = re.compile(r'(?P<num>[-+]?(\d+(\.\d*)?|\.\d+)([eE][-+]?\d+)?)(?P<multi>[kMGT])?')
@@ -222,6 +222,32 @@ def setup_argument_parser():
 
     return parser
 
+# Start of classes/functions written by Scott Kriel
+class JSONEncoder(json.JSONEncoder):
+     def default(self, obj):
+         if isinstance(obj, type(sys.stdout)):
+             return str(obj)
+         # Let the base class default method raise the TypeError
+         return json.JSONEncoder.default(self, obj)
+     
+def write_config(args, campaignPath):
+    configFilepath = campaignPath+'/CONFIG.txt'     # Full path of config text file 
+    configDict = vars(args) # Convert arg type to dictionary         
+    
+    print(args)
+    print(configDict)
+      
+    with open(configFilepath, 'w') as fileID:
+        fileID.write(json.dumps(configDict, cls=JSONEncoder))   # Write config dict to json file using custom JSONencoder
+
+def read_config(campaignPath):    
+    # Read back the config file for error checking 
+    configFilepath = campaignPath+'/CONFIG.txt'     # Full path of config text file 
+    fileID = open(configFilepath, "r")
+    configContents = fileID.read()
+    configDictIn = json.loads(configContents)
+    fileID.close()    
+    return configDictIn
             
 def main():
     # Parse command line arguments
@@ -278,22 +304,9 @@ def main():
             parser.error('argument --fft-window: --fft-window-param is required when using kaiser or tukey windows')
         args.fft_window = (args.fft_window, args.fft_window_param)
 
-    argsDict = vars(args)
-    print(args)
-    argsFilename = 'argsDict.txt'
-    if type(argsDict['output'])!=str:
-        argsDict['output'] = str(argsDict['output'])
-    
-            
-    with open(argsFilename, 'w') as fileID:
-        fileID.write(json.dumps(argsDict))            
-    fileIDin = open(argsFilename, "r")
-    contents = fileIDin.read()
-    dictionary = json.loads(contents)
-    fileIDin.close()    
-   # with open(argsFilename, 'w') as f: 
-        #for key, value in argsDict.items(): 
-            #f.write('%s:%s\n' % (key, value))
+    campaignPath = os.getcwd()+'/campaign'
+    write_config(args, campaignPath)
+    configDictIn = read_config(campaignPath)
     
 if __name__ == '__main__':
     main()
