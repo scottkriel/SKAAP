@@ -10,10 +10,9 @@ Description:    Wrapper based on https://github.com/xmikos/soapy_power/blob/mast
 """
 
 import os, sys, logging, argparse, re, shutil, textwrap
-
-import simplesoapy
 from soapypower import writer
 from soapypower.version import __version__
+import ast
 import json
 
 logger = logging.getLogger(__name__)
@@ -76,67 +75,6 @@ def wrap(text, indent='    '):
     )
     return '\n'.join(wrapper.wrap(text))
 
-
-def detect_devices(soapy_args=''):
-    """Returns detected SoapySDR devices"""
-    devices = simplesoapy.detect_devices(soapy_args, as_string=True)
-    text = []
-    text.append('Detected SoapySDR devices:')
-    if devices:
-        for i, d in enumerate(devices):
-            text.append('  {}'.format(d))
-    else:
-        text.append('  No devices found!')
-    return (devices, '\n'.join(text))
-
-
-def device_info(soapy_args=''):
-    """Returns info about selected SoapySDR device"""
-    text = []
-    try:
-        device = simplesoapy.SoapyDevice(soapy_args)
-        text.append('Selected device: {}'.format(device.hardware))
-        text.append('  Available RX channels:')
-        text.append('    {}'.format(', '.join(str(x) for x in device.list_channels())))
-        text.append('  Available antennas:')
-        text.append('    {}'.format(', '.join(device.list_antennas())))
-        text.append('  Available tunable elements:')
-        text.append('    {}'.format(', '.join(device.list_frequencies())))
-        text.append('  Available amplification elements:')
-        text.append('    {}'.format(', '.join(device.list_gains())))
-        text.append('  Available device settings:')
-        for key, s in device.list_settings().items():
-            text.append(wrap('{} ... {} - {} (default: {})'.format(key, s['name'], s['description'], s['value'])))
-        text.append('  Available stream arguments:')
-        for key, s in device.list_stream_args().items():
-            text.append(wrap('{} ... {} - {} (default: {})'.format(key, s['name'], s['description'], s['value'])))
-        text.append('  Allowed gain range [dB]:')
-        text.append('    {:.2f} - {:.2f}'.format(*device.get_gain_range()))
-        text.append('  Allowed frequency range [MHz]:')
-        text.append('    {:.2f} - {:.2f}'.format(*[x / 1e6 for x in device.get_frequency_range()]))
-        text.append('  Allowed sample rates [MHz]:')
-        rates = []
-        for r in device.list_sample_rates():
-            if r[0] == r[1]:
-                rates.append('{:.2f}'.format(r[0] / 1e6))
-            else:
-                rates.append('{:.2f} - {:.2f}'.format(r[0] / 1e6, r[1] / 1e6))
-        text.append(wrap(', '.join(rates)))
-        text.append('  Allowed bandwidths [MHz]:')
-        bandwidths = []
-        for b in device.list_bandwidths():
-            if b[0] == b[1]:
-                bandwidths.append('{:.2f}'.format(b[0] / 1e6))
-            else:
-                bandwidths.append('{:.2f} - {:.2f}'.format(b[0] / 1e6, b[1] / 1e6))
-        if bandwidths:
-            text.append(wrap(', '.join(bandwidths)))
-        else:
-            text.append('    N/A')
-    except RuntimeError:
-        device = None
-        text.append('No devices found!')
-    return (device, '\n'.join(text))
 
 
 def setup_argument_parser():
@@ -284,14 +222,7 @@ def setup_argument_parser():
 
     return parser
 
-class ConfigEncoder(json.JSONEncoder):
-     def default(self, obj):
-         if isinstance(obj, ):
-             return [obj.real, obj.imag]
-         # Let the base class default method raise the TypeError
-         return json.JSONEncoder.default(self, obj)
-
-
+            
 def main():
     # Parse command line arguments
     parser = setup_argument_parser()
@@ -310,47 +241,15 @@ def main():
         format='%(levelname)s: %(message)s'
     )
 
-    # Import soapypower.power module only after setting log level
-    from soapypower import power
-
-    # Detect SoapySDR devices
-    if args.detect:
-        devices, devices_text = detect_devices(args.device)
-        print(devices_text)
-        sys.exit(0 if devices else 1)
-
-    # Show info about selected SoapySDR device
-    if args.info:
-        device, device_text = device_info(args.device)
-        print(device_text)
-        sys.exit(0 if device else 1)
-
-    # Prepare arguments for SoapyPower
-    if args.no_pyfftw:
-        power.psd.simplespectral.use_pyfftw = False
-
-    # Create SoapyPower instance
-    try:
-        sdr = power.SoapyPower(
-            soapy_args=args.device, sample_rate=args.rate, bandwidth=args.bandwidth, corr=args.ppm,
-            gain=args.specific_gains if args.specific_gains else args.gain, auto_gain=args.agc,
-            channel=args.channel, antenna=args.antenna, settings=args.device_settings,
-            force_sample_rate=args.force_rate, force_bandwidth=args.force_bandwidth,
-            output=args.output_fd if args.output_fd is not None else args.output,
-            output_format=args.format
-        )
-        logger.info('Using device: {}'.format(sdr.device.hardware))
-    except RuntimeError:
-        parser.error('No devices found!')
-
+    
     # Prepare arguments for SoapyPower.sweep()
     if len(args.freq) < 2:
         args.freq = [args.freq[0], args.freq[0]]
 
     if args.bin_size:
-        args.bins = sdr.bin_size_to_bins(args.bin_size)
+        args.bins = 'sdr.bin_size_to_bins(args.bin_size)'
 
-    args.bins = sdr.nearest_bins(args.bins, even=args.even, pow2=args.pow2)
+    args.bins = 'sdr.nearest_bins(args.bins, even=args.even, pow2=args.pow2)'
 
     if args.endless:
         args.runs = 0
@@ -366,52 +265,35 @@ def main():
 
     if args.overlap:
         args.overlap /= 100
-        args.overlap = sdr.nearest_overlap(args.overlap, args.bins)
+        args.overlap = 'sdr.nearest_overlap(args.overlap, args.bins)'
 
     if args.total_time:
-        args.time = args.total_time / len(sdr.freq_plan(args.freq[0], args.freq[1], args.bins, args.overlap, quiet=True))
+        args.time = args.total_time #/ len(sdr.freq_plan(args.freq[0], args.freq[1], args.bins, args.overlap, quiet=True))'
 
     if args.time:
-        args.repeats = sdr.time_to_repeats(args.bins, args.time)
+        args.repeats = 'sdr.time_to_repeats(args.bins, args.time)'
 
     if args.fft_window in ('kaiser', 'tukey'):
         if args.fft_window_param is None:
             parser.error('argument --fft-window: --fft-window-param is required when using kaiser or tukey windows')
         args.fft_window = (args.fft_window, args.fft_window_param)
-    
-    print('args')
-    print(args)
+
     argsDict = vars(args)
-    print('argsDict)
-    print(argsDict)
-    print('args')
     print(args)
-    configFile = 'CONFIG.txt'
+    argsFilename = 'argsDict.txt'
     if type(argsDict['output'])!=str:
         argsDict['output'] = str(argsDict['output'])
-             
+    
+            
     with open(argsFilename, 'w') as fileID:
         fileID.write(json.dumps(argsDict))            
     fileIDin = open(argsFilename, "r")
     contents = fileIDin.read()
     dictionary = json.loads(contents)
     fileIDin.close()    
-    # with open(argsFilename, 'w') as f: 
+   # with open(argsFilename, 'w') as f: 
         #for key, value in argsDict.items(): 
             #f.write('%s:%s\n' % (key, value))
     
-
-    # Start frequency sweep
-    sdr.sweep(
-        args.freq[0], args.freq[1], args.bins, args.repeats,
-        runs=args.runs, time_limit=args.elapsed, overlap=args.overlap, crop=args.crop,
-        fft_window=args.fft_window, fft_overlap=args.fft_overlap / 100, log_scale=not args.linear,
-        remove_dc=args.remove_dc, detrend=args.detrend if args.detrend != 'none' else None,
-        lnb_lo=args.lnb_lo, tune_delay=args.tune_delay, reset_stream=args.reset_stream,
-        base_buffer_size=args.buffer_size, max_buffer_size=args.max_buffer_size,
-        max_threads=args.max_threads, max_queue_size=args.max_queue_size
-    )
-
-
 if __name__ == '__main__':
     main()
