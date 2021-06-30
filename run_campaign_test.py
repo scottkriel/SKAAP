@@ -314,6 +314,9 @@ def main():
         if args.fft_window_param is None:
             parser.error('argument --fft-window: --fft-window-param is required when using kaiser or tukey windows')
         args.fft_window = (args.fft_window, args.fft_window_param)
+    args.output.close()    
+    with open(campaignPath+'/output.txt', "w", encoding="utf-8") as args.output:
+        args.output.write('Reopened output')
 
     scan_result = np.loadtxt(args.output.name, dtype=float, comments='#', delimiter=' ')
     freq = scan_result[:,0]

@@ -420,16 +420,17 @@ def main():
     while Nsweep<3:
         print('Starting sweep number %s' % (Nsweep)+' ...')
         scan_start_dtime = datetime.datetime.now()
-        # Start frequency sweep
-        sdr.sweep(
-            args.freq[0], args.freq[1], args.bins, args.repeats,
-            runs=args.runs, time_limit=args.elapsed, overlap=args.overlap, crop=args.crop,
-            fft_window=args.fft_window, fft_overlap=args.fft_overlap / 100, log_scale=not args.linear,
-            remove_dc=args.remove_dc, detrend=args.detrend if args.detrend != 'none' else None,
-            lnb_lo=args.lnb_lo, tune_delay=args.tune_delay, reset_stream=args.reset_stream,
-            base_buffer_size=args.buffer_size, max_buffer_size=args.max_buffer_size,
-            max_threads=args.max_threads, max_queue_size=args.max_queue_size
-        )
+        with open(campaignPath+'/output.txt', "w", encoding="utf-8") as args.output:
+            # Start frequency sweep
+            sdr.sweep(
+                args.freq[0], args.freq[1], args.bins, args.repeats,
+                runs=args.runs, time_limit=args.elapsed, overlap=args.overlap, crop=args.crop,
+                fft_window=args.fft_window, fft_overlap=args.fft_overlap / 100, log_scale=not args.linear,
+                remove_dc=args.remove_dc, detrend=args.detrend if args.detrend != 'none' else None,
+                lnb_lo=args.lnb_lo, tune_delay=args.tune_delay, reset_stream=args.reset_stream,
+                base_buffer_size=args.buffer_size, max_buffer_size=args.max_buffer_size,
+                max_threads=args.max_threads, max_queue_size=args.max_queue_size
+            )
         scan_end_dtime = datetime.datetime.now()
         scan_result = np.loadtxt(args.output.name, dtype=float, comments='#', delimiter=' ')
         freq = scan_result[:,0]
