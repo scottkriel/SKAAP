@@ -405,16 +405,16 @@ def main():
    
     
 
-    # # Start frequency sweep
-    # sdr.sweep(
-    #     args.freq[0], args.freq[1], args.bins, args.repeats,
-    #     runs=args.runs, time_limit=args.elapsed, overlap=args.overlap, crop=args.crop,
-    #     fft_window=args.fft_window, fft_overlap=args.fft_overlap / 100, log_scale=not args.linear,
-    #     remove_dc=args.remove_dc, detrend=args.detrend if args.detrend != 'none' else None,
-    #     lnb_lo=args.lnb_lo, tune_delay=args.tune_delay, reset_stream=args.reset_stream,
-    #     base_buffer_size=args.buffer_size, max_buffer_size=args.max_buffer_size,
-    #     max_threads=args.max_threads, max_queue_size=args.max_queue_size
-    # )
+    # Start frequency sweep
+    sdr.sweep(
+        args.freq[0], args.freq[1], args.bins, args.repeats,
+        runs=args.runs, time_limit=args.elapsed, overlap=args.overlap, crop=args.crop,
+        fft_window=args.fft_window, fft_overlap=args.fft_overlap / 100, log_scale=not args.linear,
+        remove_dc=args.remove_dc, detrend=args.detrend if args.detrend != 'none' else None,
+        lnb_lo=args.lnb_lo, tune_delay=args.tune_delay, reset_stream=args.reset_stream,
+        base_buffer_size=args.buffer_size, max_buffer_size=args.max_buffer_size,
+        max_threads=args.max_threads, max_queue_size=args.max_queue_size
+    )
 
 
 if __name__ == '__main__':
