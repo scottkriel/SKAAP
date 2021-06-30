@@ -11,10 +11,12 @@ Description:    Wrapper based on https://github.com/xmikos/soapy_power/blob/mast
 
 import os, sys, logging, argparse, re, shutil, textwrap
 
+import numpy as np
 import simplesoapy
 from soapypower import writer
 from soapypower.version import __version__
 import json
+import datetime
 
 logger = logging.getLogger(__name__)
 re_float_with_multiplier = re.compile(r'(?P<num>[-+]?(\d+(\.\d*)?|\.\d+)([eE][-+]?\d+)?)(?P<multi>[kMGT])?')
@@ -311,6 +313,11 @@ def read_config(campaignPath):
     fileID.close()    
     return configDictIn
 
+# Check if given array is Monotonic
+def isMonotonic(A):  
+    return (all(A[i] <= A[i + 1] for i in range(len(A) - 1)) or
+            all(A[i] >= A[i + 1] for i in range(len(A) - 1)))
+
 def main():
     # Parse command line arguments
     parser = setup_argument_parser()
@@ -403,9 +410,16 @@ def main():
     #configDictIn = read_config(campaignPath)
     #print(configDictIn)
     
+    freq_fname = campaignPath+'/freq.txt'
+    magFull_fname = campaignPath+'/magFull.txt'
+    magMax_fname = campaignPath+'/magMax.txt'
+    magMean_fname = campaignPath+'/magMean.txt'
+    magMin_fname = campaignPath+'/magMin.txt'
+    time_fname = campaignPath+'/time.txt'
     Nsweep = 1
-    while Nsweep<2:
+    while Nsweep<3:
         print('Starting sweep number %s' % (Nsweep)+' ...')
+        scan_start_dtime = datetime.datetime.now()
         # Start frequency sweep
         sdr.sweep(
             args.freq[0], args.freq[1], args.bins, args.repeats,
@@ -416,7 +430,30 @@ def main():
             base_buffer_size=args.buffer_size, max_buffer_size=args.max_buffer_size,
             max_threads=args.max_threads, max_queue_size=args.max_queue_size
         )
-        print('Sweep %s' % Nsweep + ' complete')
+        scan_end_dtime = datetime.datetime.now()
+        scan_result = np.loadtxt(args.output.name, dtype=float, comments='#', delimiter=' ')
+        freq = scan_result[:,0]
+        mag_dB = scan_result[:,1]
+        if Nsweep==1:    # Initialise output files if this is the first run
+            if all(i > 0 for i in freq) and isMonotonic(freq):      # Check if freq array is positive monotonic
+                freq_init = freq[:]
+                np.savetxt(freq_fname, freq, fmt='%.18e') 
+                np.savetxt(magFull_fname, mag_dB, fmt='%.18f')
+                np.savetxt(magMax_fname, mag_dB, fmt='%.18f')
+                np.savetxt(magMean_fname, mag_dB, fmt='%.18f')
+                np.savetxt(magMin_fname, mag_dB, fmt='%.18f')
+            else:
+                raise ValueError('Initial scan frequency vector is invalid!')
+        elif freq==freq_init:    # Check if current frequency vector is identical to initial
+            with open(magFull_fname, "ab") as fileID:
+                np.savetxt(fileID, mag_dB, fmt='%.18f')
+
+        else:
+            raise ValueError('Scan ' + str(Nsweep) + ' frequency vector does not match initial!')
+            
+
+        
+        print('Sweep %s' % Nsweep + ' complete. \nWriting data to file...')
         Nsweep=Nsweep+1
 
 

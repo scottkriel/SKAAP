@@ -13,6 +13,7 @@ import os, sys, logging, argparse, re, shutil, textwrap
 from soapypower import writer
 from soapypower.version import __version__
 import json
+import numpy as np
 
 
 logger = logging.getLogger(__name__)
@@ -249,11 +250,21 @@ def read_config(campaignPath):
     fileID.close()    
     return configDictIn
             
+# Check if given array is Monotonic
+def isMonotonic(A):  
+    return (all(A[i] <= A[i + 1] for i in range(len(A) - 1)) or
+            all(A[i] >= A[i + 1] for i in range(len(A) - 1)))
+
 def main():
-    # Parse command line arguments
+ # Parse command line arguments
     parser = setup_argument_parser()
-    args = parser.parse_args(['--gain=15.0'])
-    args = parser.parse_args(['--output=output.txt']+sys.argv[1:])
+    args = parser.parse_args()
+    # Define paths to campaign
+    campaignPath = os.getcwd()+'/campaign'
+    # Overide necessary args to acheive required campaign behaviour
+    args.output = open(campaignPath+'/output.txt', "w", encoding="utf-8")
+    args.runs = 1
+    
     # Setup logging
     if args.quiet:
         log_level = logging.WARNING
@@ -304,9 +315,10 @@ def main():
             parser.error('argument --fft-window: --fft-window-param is required when using kaiser or tukey windows')
         args.fft_window = (args.fft_window, args.fft_window_param)
 
-    campaignPath = os.getcwd()+'/campaign'
-    write_config(args, campaignPath)
-    configDictIn = read_config(campaignPath)
+    scan_result = np.loadtxt(args.output.name, dtype=float, comments='#', delimiter=' ')
+    freq = scan_result[:,0]
+    mag_dB = scan_result[:,1]
+
     
 if __name__ == '__main__':
     main()
