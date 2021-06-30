@@ -168,7 +168,7 @@ def setup_argument_parser():
     output_group.add_argument('--output-fd', metavar='NUM', type=int, default=None,
                               help='output to existing file descriptor (incompatible with -O)')
 
-    main_title.add_argument('-F', '--format', choices=sorted(writer.formats.keys()), default='rtl_power',
+    main_title.add_argument('-F', '--format', choices=sorted(writer.formats.keys()), default='rtl_power_fftw',
                             help='output format (default: %(default)s)')
     main_title.add_argument('-q', '--quiet', action='store_true',
                             help='limit verbosity')
@@ -190,7 +190,7 @@ def setup_argument_parser():
 
     spectra_title = parser.add_argument_group('Averaging')
     spectra_group = spectra_title.add_mutually_exclusive_group()
-    spectra_group.add_argument('-n', '--repeats', type=int, default=1600,
+    spectra_group.add_argument('-n', '--repeats', type=int, default=1,
                                help='number of spectra to average (incompatible with -t and -T, default: %(default)s)')
     spectra_group.add_argument('-t', '--time', metavar='SECONDS', type=float,
                                help='integration time (incompatible with -T and -n)')
@@ -213,7 +213,7 @@ def setup_argument_parser():
                               help='SoapySDR RX channel (default: %(default)s)')
     device_title.add_argument('-A', '--antenna', default='',
                               help='SoapySDR selected antenna')
-    device_title.add_argument('-r', '--rate', metavar='Hz', type=float_with_multiplier, default=2e6,
+    device_title.add_argument('-r', '--rate', metavar='Hz', type=float_with_multiplier, default=10e6,
                               help='sample rate (default: %(default)s)')
     device_title.add_argument('-w', '--bandwidth', metavar='Hz', type=float_with_multiplier, default=0,
                               help='filter bandwidth (default: %(default)s)')
@@ -221,7 +221,7 @@ def setup_argument_parser():
                               help='frequency correction in ppm')
 
     gain_group = device_title.add_mutually_exclusive_group()
-    gain_group.add_argument('-g', '--gain', metavar='dB', type=float, default=37.2,
+    gain_group.add_argument('-g', '--gain', metavar='dB', type=float, default=15.0,
                             help='total gain (incompatible with -G and -a, default: %(default)s)')
     gain_group.add_argument('-G', '--specific-gains', metavar='STRING', type=specific_gains, default='',
                             help='specific gains of individual amplification elements '
