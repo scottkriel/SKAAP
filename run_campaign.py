@@ -315,7 +315,12 @@ def main():
     # Parse command line arguments
     parser = setup_argument_parser()
     args = parser.parse_args()
-
+    # Define paths to campaign
+    campaignPath = os.getcwd()+'/campaign'
+    # Overide necessary args to acheive required campaign behaviour
+    args.output = campaignPath+'/output.txt'
+    args.runs = 1
+   
     # Setup logging
     if args.quiet:
         log_level = logging.WARNING
@@ -323,7 +328,6 @@ def main():
         log_level = logging.DEBUG
     else:
         log_level = logging.INFO
-
     logging.basicConfig(
         level=log_level,
         format='%(levelname)s: %(message)s'
@@ -337,13 +341,11 @@ def main():
         devices, devices_text = detect_devices(args.device)
         print(devices_text)
         sys.exit(0 if devices else 1)
-
     # Show info about selected SoapySDR device
     if args.info:
         device, device_text = device_info(args.device)
         print(device_text)
         sys.exit(0 if device else 1)
-
     # Prepare arguments for SoapyPower
     if args.no_pyfftw:
         power.psd.simplespectral.use_pyfftw = False
@@ -368,14 +370,12 @@ def main():
 
     if args.bin_size:
         args.bins = sdr.bin_size_to_bins(args.bin_size)
-
     args.bins = sdr.nearest_bins(args.bins, even=args.even, pow2=args.pow2)
 
-    if args.endless:
-        args.runs = 0
-
-    if args.elapsed:
-        args.runs = 0
+    # if args.endless:
+    #     args.runs = 0
+    # if args.elapsed:
+    #     args.runs = 0
 
     if args.crop:
         args.overlap = args.crop
@@ -389,7 +389,6 @@ def main():
 
     if args.total_time:
         args.time = args.total_time / len(sdr.freq_plan(args.freq[0], args.freq[1], args.bins, args.overlap, quiet=True))
-
     if args.time:
         args.repeats = sdr.time_to_repeats(args.bins, args.time)
 
@@ -398,23 +397,27 @@ def main():
             parser.error('argument --fft-window: --fft-window-param is required when using kaiser or tukey windows')
         args.fft_window = (args.fft_window, args.fft_window_param)
     
-    campaignPath = os.getcwd()+'/campaign'
+    # Log scan configuration to file 
     write_config(args, campaignPath)
-    configDictIn = read_config(campaignPath)
-    print(configDictIn)
-   
+    # Read config file back in (for debugging purposes only)  
+    #configDictIn = read_config(campaignPath)
+    #print(configDictIn)
     
-
-    # Start frequency sweep
-    sdr.sweep(
-        args.freq[0], args.freq[1], args.bins, args.repeats,
-        runs=args.runs, time_limit=args.elapsed, overlap=args.overlap, crop=args.crop,
-        fft_window=args.fft_window, fft_overlap=args.fft_overlap / 100, log_scale=not args.linear,
-        remove_dc=args.remove_dc, detrend=args.detrend if args.detrend != 'none' else None,
-        lnb_lo=args.lnb_lo, tune_delay=args.tune_delay, reset_stream=args.reset_stream,
-        base_buffer_size=args.buffer_size, max_buffer_size=args.max_buffer_size,
-        max_threads=args.max_threads, max_queue_size=args.max_queue_size
-    )
+    Nsweep = 1
+    while Nsweep<2:
+        print('Starting sweep number %s' % (Nsweep)+' ...')
+        # Start frequency sweep
+        sdr.sweep(
+            args.freq[0], args.freq[1], args.bins, args.repeats,
+            runs=args.runs, time_limit=args.elapsed, overlap=args.overlap, crop=args.crop,
+            fft_window=args.fft_window, fft_overlap=args.fft_overlap / 100, log_scale=not args.linear,
+            remove_dc=args.remove_dc, detrend=args.detrend if args.detrend != 'none' else None,
+            lnb_lo=args.lnb_lo, tune_delay=args.tune_delay, reset_stream=args.reset_stream,
+            base_buffer_size=args.buffer_size, max_buffer_size=args.max_buffer_size,
+            max_threads=args.max_threads, max_queue_size=args.max_queue_size
+        )
+        print('Sweep %s' % Nsweep + ' complete')
+        Nsweep=Nsweep+1
 
 
 if __name__ == '__main__':
