@@ -416,7 +416,7 @@ def main():
     magMin_fname = campaignPath+'/magMin.txt'
     time_fname = campaignPath+'/time.txt'
     Nsweep = 1
-    while Nsweep<3:
+    while Nsweep<100:
         args.output = open(campaignPath+'/output.txt', "w", encoding="utf-8")
         # Create a new SoapyPower instance before each sweep (allows for variable SDR parameters)
         try:
