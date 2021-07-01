@@ -325,7 +325,6 @@ def main():
     # Define paths to campaign
     campaignPath = os.getcwd()+'/campaign'
     # Overide necessary args to acheive required campaign behaviour
-    args.output = open(campaignPath+'/output.txt', "w", encoding="utf-8")
     args.runs = 1
    
     # Setup logging
@@ -418,6 +417,7 @@ def main():
     time_fname = campaignPath+'/time.txt'
     Nsweep = 1
     while Nsweep<3:
+        args.output = open(campaignPath+'/output.txt', "w", encoding="utf-8")
         # Create a new SoapyPower instance before each sweep (allows for variable SDR parameters)
         try:
             sdr = power.SoapyPower(
