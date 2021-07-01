@@ -418,23 +418,36 @@ def main():
     time_fname = campaignPath+'/time.txt'
     Nsweep = 1
     while Nsweep<3:
+        # Create a new SoapyPower instance before each sweep (allows for variable SDR parameters)
+        try:
+            sdr = power.SoapyPower(
+                soapy_args=args.device, sample_rate=args.rate, bandwidth=args.bandwidth, corr=args.ppm,
+                gain=args.specific_gains if args.specific_gains else args.gain, auto_gain=args.agc,
+                channel=args.channel, antenna=args.antenna, settings=args.device_settings,
+                force_sample_rate=args.force_rate, force_bandwidth=args.force_bandwidth,
+                output=args.output_fd if args.output_fd is not None else args.output,
+                output_format=args.format
+            )
+            logger.info('Using device: {}'.format(sdr.device.hardware))
+        except RuntimeError:
+            parser.error('No devices found!')
+
         print('Starting sweep number %s' % (Nsweep)+' ...')
         scan_start_dtime = datetime.datetime.now()
-        with open(campaignPath+'/output.txt', "w", encoding="utf-8") as args.output:
-            # Start frequency sweep
-            sdr.sweep(
-                args.freq[0], args.freq[1], args.bins, args.repeats,
-                runs=args.runs, time_limit=args.elapsed, overlap=args.overlap, crop=args.crop,
-                fft_window=args.fft_window, fft_overlap=args.fft_overlap / 100, log_scale=not args.linear,
-                remove_dc=args.remove_dc, detrend=args.detrend if args.detrend != 'none' else None,
-                lnb_lo=args.lnb_lo, tune_delay=args.tune_delay, reset_stream=args.reset_stream,
-                base_buffer_size=args.buffer_size, max_buffer_size=args.max_buffer_size,
-                max_threads=args.max_threads, max_queue_size=args.max_queue_size
-            )
+        # Start frequency sweep
+        sdr.sweep(
+            args.freq[0], args.freq[1], args.bins, args.repeats,
+            runs=args.runs, time_limit=args.elapsed, overlap=args.overlap, crop=args.crop,
+            fft_window=args.fft_window, fft_overlap=args.fft_overlap / 100, log_scale=not args.linear,
+            remove_dc=args.remove_dc, detrend=args.detrend if args.detrend != 'none' else None,
+            lnb_lo=args.lnb_lo, tune_delay=args.tune_delay, reset_stream=args.reset_stream,
+            base_buffer_size=args.buffer_size, max_buffer_size=args.max_buffer_size,
+            max_threads=args.max_threads, max_queue_size=args.max_queue_size
+        )
         scan_end_dtime = datetime.datetime.now()
         scan_result = np.loadtxt(args.output.name, dtype=float, comments='#', delimiter=' ')
-        freq = scan_result[:,0]
-        mag_dB = scan_result[:,1]
+        freq = scan_result[:,0].reshape(1,-1)       # Reshape to row vectors
+        mag_dB = scan_result[:,1].reshape(1,-1)
         if Nsweep==1:    # Initialise output files if this is the first run
             if all(i > 0 for i in freq) and isMonotonic(freq):      # Check if freq array is positive monotonic
                 freq_init = freq[:]
@@ -443,10 +456,14 @@ def main():
                 np.savetxt(magMax_fname, mag_dB, fmt='%.18f')
                 np.savetxt(magMean_fname, mag_dB, fmt='%.18f')
                 np.savetxt(magMin_fname, mag_dB, fmt='%.18f')
+                with open(time_fname,'w') as fileID:
+                    fileID.write('{}, {}\n'.format(scan_start_dtime,scan_end_dtime))
             else:
                 raise ValueError('Initial scan frequency vector is invalid!')
         elif freq==freq_init:    # Check if current frequency vector is identical to initial
-            with open(magFull_fname, "a") as fileID:
+            with open(time_fname,'a') as fileID:
+                fileID.write('{}, {}\n'.format(scan_start_dtime,scan_end_dtime))
+            with open(magFull_fname, "a") as fileID:    # Append scan to full magnitude data file
                 np.savetxt(fileID, mag_dB, fmt='%.18f')
         else:
             raise ValueError('Scan ' + str(Nsweep) + ' frequency vector does not match initial!')
