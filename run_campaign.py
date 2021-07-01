@@ -313,10 +313,14 @@ def read_config(campaignPath):
     fileID.close()    
     return configDictIn
 
-# Check if given array is Monotonic
-def isMonotonic(A):  
+def isMonotonic(A):
+    # Check if given array is Monotonic
     return (all(A[i] <= A[i + 1] for i in range(len(A) - 1)) or
             all(A[i] >= A[i + 1] for i in range(len(A) - 1)))
+
+def lin10(dB):
+    # Convert dB = 10*log10(A) to linear and return A
+    return 10**(dB/10)
 
 def main():
     # Parse command line arguments
@@ -416,7 +420,7 @@ def main():
     magMin_fname = campaignPath+'/magMin.txt'
     time_fname = campaignPath+'/time.txt'
     Nsweep = 1
-    while Nsweep<3:
+    while Nsweep<500:
         args.output = open(campaignPath+'/output.txt', "w", encoding="utf-8")
         # Create a new SoapyPower instance before each sweep (allows for variable SDR parameters)
         try:
@@ -451,6 +455,9 @@ def main():
         if Nsweep==1:    # Initialise output files if this is the first run
             if all(i > 0 for i in freq) and isMonotonic(freq):      # Check if freq array is positive monotonic
                 freq_init = np.copy(freq) # make a copy and store as base freq vect
+                magMax_dB = np.copy(mag_dB) # Max and min spectrums initialized
+                magMin_dB = np.copy(mag_dB)
+                magMean_lin = lin10(mag_dB) # Save mean as linear for averaging
                 np.savetxt(freq_fname, freq.reshape(1,-1), fmt='%.18e') 
                 np.savetxt(magFull_fname, mag_dB.reshape(1,-1), fmt='%.18f')
                 np.savetxt(magMax_fname, mag_dB.reshape(1,-1), fmt='%.18f')
@@ -461,14 +468,21 @@ def main():
             else:
                 raise ValueError('Initial scan frequency vector is invalid!')
         elif all(freq==freq_init):    # Check if current frequency vector is identical to initial
-            with open(time_fname,'a') as fileID:
-                fileID.write('{}, {}\n'.format(scan_start_dtime,scan_end_dtime))
+            # Calculate max, mean and min amplitudes
+            magMean_lin=(magMean_lin+lin10(mag_dB))/Nsweep
+            magMax_dB[np.where(mag_dB>magMax_dB)] = mag_dB[np.where(mag_dB>magMax_dB)]
+            magMin_dB[np.where(mag_dB<magMin_dB)] = mag_dB[np.where(mag_dB<magMin_dB)]
+            # Save to data files
+            np.savetxt(magMax_fname, magMax_dB.reshape(1,-1), fmt='%.18f')
+            np.savetxt(magMin_fname, mag_dB.reshape(1,-1), fmt='%.18f')
+            np.savetxt(magMean_fname, np.log10(magMean_lin.reshape(1,-1)), fmt='%.18f')
             with open(magFull_fname, "a") as fileID:    # Append scan to full magnitude data file
                 np.savetxt(fileID, mag_dB.reshape(1,-1), fmt='%.18f')
+            with open(time_fname,'a') as fileID:
+                fileID.write('{}, {}\n'.format(scan_start_dtime,scan_end_dtime))
         else:
             raise ValueError('Scan ' + str(Nsweep) + ' frequency vector does not match initial!')
             
-        
         print('Sweep %s' % Nsweep + ' complete. \nWriting data to file...')
         Nsweep=Nsweep+1
 
