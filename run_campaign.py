@@ -446,13 +446,11 @@ def main():
             else:
                 raise ValueError('Initial scan frequency vector is invalid!')
         elif freq==freq_init:    # Check if current frequency vector is identical to initial
-            with open(magFull_fname, "ab") as fileID:
+            with open(magFull_fname, "a") as fileID:
                 np.savetxt(fileID, mag_dB, fmt='%.18f')
-
         else:
             raise ValueError('Scan ' + str(Nsweep) + ' frequency vector does not match initial!')
             
-
         
         print('Sweep %s' % Nsweep + ' complete. \nWriting data to file...')
         Nsweep=Nsweep+1
