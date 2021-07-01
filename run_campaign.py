@@ -458,11 +458,11 @@ def main():
                 magMax_dB = np.copy(mag_dB) # Max and min spectrums initialized
                 magMin_dB = np.copy(mag_dB)
                 magMean_lin = lin10(mag_dB) # Save mean as linear for averaging
-                np.savetxt(freq_fname, freq.reshape(1,-1), fmt='%.18e') 
-                np.savetxt(magFull_fname, mag_dB.reshape(1,-1), fmt='%.18f')
-                np.savetxt(magMax_fname, mag_dB.reshape(1,-1), fmt='%.18f')
-                np.savetxt(magMean_fname, mag_dB.reshape(1,-1), fmt='%.18f')
-                np.savetxt(magMin_fname, mag_dB.reshape(1,-1), fmt='%.18f')
+                np.savetxt(freq_fname, freq.reshape(1,-1), fmt='%.3f') 
+                np.savetxt(magFull_fname, mag_dB.reshape(1,-1), fmt='%.12f')
+                np.savetxt(magMax_fname, mag_dB.reshape(1,-1), fmt='%.12f')
+                np.savetxt(magMean_fname, mag_dB.reshape(1,-1), fmt='%.12f')
+                np.savetxt(magMin_fname, mag_dB.reshape(1,-1), fmt='%.12f')
                 with open(time_fname,'w') as fileID:
                     fileID.write('{}, {}\n'.format(scan_start_dtime,scan_end_dtime))
             else:
@@ -475,7 +475,7 @@ def main():
             # Save to data files
             np.savetxt(magMax_fname, magMax_dB.reshape(1,-1), fmt='%.18f')
             np.savetxt(magMin_fname, mag_dB.reshape(1,-1), fmt='%.18f')
-            np.savetxt(magMean_fname, np.log10(magMean_lin.reshape(1,-1)), fmt='%.18f')
+            np.savetxt(magMean_fname, 10*np.log10(magMean_lin.reshape(1,-1)), fmt='%.18f')
             with open(magFull_fname, "a") as fileID:    # Append scan to full magnitude data file
                 np.savetxt(fileID, mag_dB.reshape(1,-1), fmt='%.18f')
             with open(time_fname,'a') as fileID:
