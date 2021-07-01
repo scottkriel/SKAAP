@@ -413,6 +413,7 @@ def main():
     #configDictIn = read_config(campaignPath)
     #print(configDictIn)
     
+    # Define output file names
     freq_fname = campaignPath+'/freq.txt'
     magFull_fname = campaignPath+'/magFull.txt'
     magMax_fname = campaignPath+'/magMax.txt'
