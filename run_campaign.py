@@ -446,16 +446,16 @@ def main():
         )
         scan_end_dtime = datetime.datetime.now()
         scan_result = np.loadtxt(args.output.name, dtype=float, comments='#', delimiter=' ')
-        freq = scan_result[:,0].reshape(1,-1)       # Reshape to row vectors
-        mag_dB = scan_result[:,1].reshape(1,-1)
+        freq = scan_result[:,0]
+        mag_dB = scan_result[:,1]
         if Nsweep==1:    # Initialise output files if this is the first run
             if all(i > 0 for i in freq) and isMonotonic(freq):      # Check if freq array is positive monotonic
                 freq_init = freq[:]
-                np.savetxt(freq_fname, freq, fmt='%.18e') 
-                np.savetxt(magFull_fname, mag_dB, fmt='%.18f')
-                np.savetxt(magMax_fname, mag_dB, fmt='%.18f')
-                np.savetxt(magMean_fname, mag_dB, fmt='%.18f')
-                np.savetxt(magMin_fname, mag_dB, fmt='%.18f')
+                np.savetxt(freq_fname, freq.reshape(1,-1), fmt='%.18e') 
+                np.savetxt(magFull_fname, mag_dB.reshape(1,-1), fmt='%.18f')
+                np.savetxt(magMax_fname, mag_dB.reshape(1,-1), fmt='%.18f')
+                np.savetxt(magMean_fname, mag_dB.reshape(1,-1), fmt='%.18f')
+                np.savetxt(magMin_fname, mag_dB.reshape(1,-1), fmt='%.18f')
                 with open(time_fname,'w') as fileID:
                     fileID.write('{}, {}\n'.format(scan_start_dtime,scan_end_dtime))
             else:
@@ -464,7 +464,7 @@ def main():
             with open(time_fname,'a') as fileID:
                 fileID.write('{}, {}\n'.format(scan_start_dtime,scan_end_dtime))
             with open(magFull_fname, "a") as fileID:    # Append scan to full magnitude data file
-                np.savetxt(fileID, mag_dB, fmt='%.18f')
+                np.savetxt(fileID, mag_dB.reshape(1,-1), fmt='%.18f')
         else:
             raise ValueError('Scan ' + str(Nsweep) + ' frequency vector does not match initial!')
             
