@@ -331,7 +331,7 @@ def main():
     # Define paths to campaign
     campaignPath = os.getcwd()+'/campaign'
     # Overide necessary args to acheive required campaign behaviour
-    output_fileID = open(campaignPath+'/output.txt', "w", encoding="utf-8")
+    args.output_fd = open(campaignPath+'/output.txt', "w", encoding="utf-8")
     args.runs = 1
    
     # Setup logging
@@ -370,7 +370,7 @@ def main():
             gain=args.specific_gains if args.specific_gains else args.gain, auto_gain=args.agc,
             channel=args.channel, antenna=args.antenna, settings=args.device_settings,
             force_sample_rate=args.force_rate, force_bandwidth=args.force_bandwidth,
-            output=output_fileID,
+            output=args.output_fd if args.output_fd is not None else args.output,
             output_format=args.format
         )
         logger.info('Using device: {}'.format(sdr.device.hardware))
@@ -425,15 +425,14 @@ def main():
     Nsweep = 1
     while Nsweep<10:
         # args.output = open(campaignPath+'/output.txt', "w", encoding="utf-8")
-        # Create a new SoapyPower instance before each sweep (allows for variable SDR parameters)
-        open(output_fileID) # Open output stream after each sweep (soapypower seems to close it, resulting in error)
+        # Create a new SoapyPower instance before each sweep (allows for variable SDR parameters)      
         try:
             sdr = power.SoapyPower(
                 soapy_args=args.device, sample_rate=args.rate, bandwidth=args.bandwidth, corr=args.ppm,
                 gain=args.specific_gains if args.specific_gains else args.gain, auto_gain=args.agc,
                 channel=args.channel, antenna=args.antenna, settings=args.device_settings,
                 force_sample_rate=args.force_rate, force_bandwidth=args.force_bandwidth,
-                output=output_fileID,
+                output=args.output_fd if args.output_fd is not None else args.output,
                 output_format=args.format
             )
             logger.info('Using device: {}'.format(sdr.device.hardware))
@@ -453,7 +452,7 @@ def main():
             max_threads=args.max_threads, max_queue_size=args.max_queue_size
         )
         scan_end_dtime = datetime.datetime.now()
-        scan_result = np.loadtxt(output_fileID.name, dtype=float, comments='#', delimiter=' ')
+        scan_result = np.loadtxt(args.output_fd.name, dtype=float, comments='#', delimiter=' ')
         freq = scan_result[:,0]
         mag_dB = scan_result[:,1]
         if Nsweep==1:    # Initialise output files if this is the first run
