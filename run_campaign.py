@@ -426,6 +426,7 @@ def main():
     while Nsweep<10:
         # args.output = open(campaignPath+'/output.txt', "w", encoding="utf-8")
         # Create a new SoapyPower instance before each sweep (allows for variable SDR parameters)
+        open(output_fileID) # Open output stream after each sweep (soapypower seems to close it, resulting in error)
         try:
             sdr = power.SoapyPower(
                 soapy_args=args.device, sample_rate=args.rate, bandwidth=args.bandwidth, corr=args.ppm,
