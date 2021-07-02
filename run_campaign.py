@@ -4,8 +4,8 @@
 Created on Tue Jun 29 22:12:59 2021
 
 @author:        Scott Kriel
-Description:    Wrapper based on https://github.com/xmikos/soapy_power/blob/master/soapypower/__main__.py 
-                to handle long term scans
+Description:    Spectrum scanning software based on https://github.com/xmikos/soapy_power/blob/master/soapypower/__main__.py 
+                to handle long term measurements for the SKA Aperture Prototype (SKAAP)
     
 """
 
@@ -164,11 +164,11 @@ def setup_argument_parser():
                             help='center frequency or frequency range to scan, number '
                             'can be followed by a k, M or G multiplier (default: %(default)s)')
 
-    output_group = main_title.add_mutually_exclusive_group()
-    output_group.add_argument('-O', '--output', metavar='FILE', type=argparse.FileType('w'), default=sys.stdout,
-                              help='output to file (incompatible with --output-fd, default is stdout)')
-    output_group.add_argument('--output-fd', metavar='NUM', type=int, default=None,
-                              help='output to existing file descriptor (incompatible with -O)')
+    # output_group = main_title.add_mutually_exclusive_group()
+    # output_group.add_argument('-O', '--output', metavar='FILE', type=argparse.FileType('w'), default=sys.stdout,
+    #                           help='output to file (incompatible with --output-fd, default is stdout)')
+    # output_group.add_argument('--output-fd', metavar='NUM', type=int, default=None,
+    #                           help='output to existing file descriptor (incompatible with -O)')
 
     main_title.add_argument('-F', '--format', choices=sorted(writer.formats.keys()), default='rtl_power_fftw',
                             help='output format (default: %(default)s)')
@@ -288,30 +288,29 @@ def setup_argument_parser():
 
 # Start of classes/functions written by Scott Kriel
 class JSONEncoder(json.JSONEncoder):
+    """" """
      def default(self, obj):
          if isinstance(obj, type(sys.stdout)):
              return str(obj)
          # Let the base class default method raise the TypeError
          return json.JSONEncoder.default(self, obj)
      
-def write_config(args, campaignPath):
-    configFilepath = campaignPath+'/CONFIG.txt'     # Full path of config text file 
-    configDict = vars(args) # Convert arg type to dictionary         
-    
-    print(args)
-    print(configDict)
-      
-    with open(configFilepath, 'w') as fileID:
-        fileID.write(json.dumps(configDict, cls=JSONEncoder))   # Write config dict to json file using custom JSONencoder
+def write_settings(args, campaignPath):
+    settingsFilepath = campaignPath+'/scan_settings.txt'     # Full path of config text file 
+    settingsDict = vars(args) # Convert arg type to dictionary            
+    #print(args)
+    #print(settingsDict) 
+    with open(settingsFilepath, 'w') as fileID:
+        fileID.write(json.dumps(settingsDict, cls=JSONEncoder))   # Write config dict to json file using custom JSONencoder
 
-def read_config(campaignPath):    
+def read_settings(campaignPath):    
     # Read back the config file for error checking 
-    configFilepath = campaignPath+'/CONFIG.txt'     # Full path of config text file 
-    fileID = open(configFilepath, "r")
-    configContents = fileID.read()
-    configDictIn = json.loads(configContents)
+    settingsFilepath = campaignPath+'/scan_settings.txt'     # Full path of config text file 
+    fileID = open(settingsFilepath, "r")
+    settingsContents = fileID.read()
+    settingsDictIn = json.loads(settingsContents)
     fileID.close()    
-    return configDictIn
+    return settingsDictIn
 
 def isMonotonic(A):
     # Check if given array is Monotonic
@@ -321,6 +320,9 @@ def isMonotonic(A):
 def lin10(dB):
     # Convert dB = 10*log10(A) to linear and return A
     return 10**(dB/10)
+def dB10(A):
+    """Returns dB = 10*log10(A)"""
+    return 10*np.log10(A)
 
 def main():
     # Parse command line arguments
@@ -329,6 +331,7 @@ def main():
     # Define paths to campaign
     campaignPath = os.getcwd()+'/campaign'
     # Overide necessary args to acheive required campaign behaviour
+    output_fileID = open(campaignPath+'/output.txt', "w", encoding="utf-8")
     args.runs = 1
    
     # Setup logging
@@ -367,7 +370,7 @@ def main():
             gain=args.specific_gains if args.specific_gains else args.gain, auto_gain=args.agc,
             channel=args.channel, antenna=args.antenna, settings=args.device_settings,
             force_sample_rate=args.force_rate, force_bandwidth=args.force_bandwidth,
-            output=args.output_fd if args.output_fd is not None else args.output,
+            output=output_fileID,
             output_format=args.format
         )
         logger.info('Using device: {}'.format(sdr.device.hardware))
@@ -408,10 +411,10 @@ def main():
         args.fft_window = (args.fft_window, args.fft_window_param)
     
     # Log scan configuration to file 
-    write_config(args, campaignPath)
+    write_settings(args, campaignPath)
     # Read config file back in (for debugging purposes only)  
-    #configDictIn = read_config(campaignPath)
-    #print(configDictIn)
+    #settingsDictIn = read_settings(campaignPath)
+    #print(settingsDictIn)
     
     freq_fname = campaignPath+'/freq.txt'
     magFull_fname = campaignPath+'/magFull.txt'
@@ -420,8 +423,8 @@ def main():
     magMin_fname = campaignPath+'/magMin.txt'
     time_fname = campaignPath+'/time.txt'
     Nsweep = 1
-    while Nsweep<500:
-        args.output = open(campaignPath+'/output.txt', "w", encoding="utf-8")
+    while Nsweep<10:
+        # args.output = open(campaignPath+'/output.txt', "w", encoding="utf-8")
         # Create a new SoapyPower instance before each sweep (allows for variable SDR parameters)
         try:
             sdr = power.SoapyPower(
@@ -429,7 +432,7 @@ def main():
                 gain=args.specific_gains if args.specific_gains else args.gain, auto_gain=args.agc,
                 channel=args.channel, antenna=args.antenna, settings=args.device_settings,
                 force_sample_rate=args.force_rate, force_bandwidth=args.force_bandwidth,
-                output=args.output_fd if args.output_fd is not None else args.output,
+                output=output_fileID,
                 output_format=args.format
             )
             logger.info('Using device: {}'.format(sdr.device.hardware))
@@ -449,7 +452,7 @@ def main():
             max_threads=args.max_threads, max_queue_size=args.max_queue_size
         )
         scan_end_dtime = datetime.datetime.now()
-        scan_result = np.loadtxt(args.output.name, dtype=float, comments='#', delimiter=' ')
+        scan_result = np.loadtxt(output_fileID.name, dtype=float, comments='#', delimiter=' ')
         freq = scan_result[:,0]
         mag_dB = scan_result[:,1]
         if Nsweep==1:    # Initialise output files if this is the first run
@@ -473,11 +476,11 @@ def main():
             magMax_dB[np.where(mag_dB>magMax_dB)] = mag_dB[np.where(mag_dB>magMax_dB)]
             magMin_dB[np.where(mag_dB<magMin_dB)] = mag_dB[np.where(mag_dB<magMin_dB)]
             # Save to data files
-            np.savetxt(magMax_fname, magMax_dB.reshape(1,-1), fmt='%.18f')
-            np.savetxt(magMin_fname, mag_dB.reshape(1,-1), fmt='%.18f')
-            np.savetxt(magMean_fname, 10*np.log10(magMean_lin.reshape(1,-1)), fmt='%.18f')
+            np.savetxt(magMax_fname, magMax_dB.reshape(1,-1), fmt='%.12f')
+            np.savetxt(magMin_fname, mag_dB.reshape(1,-1), fmt='%.12f')
+            np.savetxt(magMean_fname, dB10(magMean_lin.reshape(1,-1)), fmt='%.12f')
             with open(magFull_fname, "a") as fileID:    # Append scan to full magnitude data file
-                np.savetxt(fileID, mag_dB.reshape(1,-1), fmt='%.18f')
+                np.savetxt(fileID, mag_dB.reshape(1,-1), fmt='%.12f')
             with open(time_fname,'a') as fileID:
                 fileID.write('{}, {}\n'.format(scan_start_dtime,scan_end_dtime))
         else:
