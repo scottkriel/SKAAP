@@ -288,12 +288,12 @@ def setup_argument_parser():
 
 # Start of classes/functions written by Scott Kriel
 class JSONEncoder(json.JSONEncoder):
-    """" """
-     def default(self, obj):
-         if isinstance(obj, type(sys.stdout)):
-             return str(obj)
-         # Let the base class default method raise the TypeError
-         return json.JSONEncoder.default(self, obj)
+    """"Encodes scanning args to dictionary"""
+    def default(self, obj):
+        if isinstance(obj, type(sys.stdout)):
+            return str(obj)
+        # Let the base class default method raise the TypeError
+        return json.JSONEncoder.default(self, obj)
      
 def write_settings(args, campaignPath):
     settingsFilepath = campaignPath+'/scan_settings.txt'     # Full path of config text file 
