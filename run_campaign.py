@@ -17,6 +17,7 @@ from soapypower import writer
 from soapypower.version import __version__
 import json
 import datetime
+import time
 
 logger = logging.getLogger(__name__)
 re_float_with_multiplier = re.compile(r'(?P<num>[-+]?(\d+(\.\d*)?|\.\d+)([eE][-+]?\d+)?)(?P<multi>[kMGT])?')
@@ -288,29 +289,31 @@ def setup_argument_parser():
 
 # Start of classes/functions written by Scott Kriel
 class JSONEncoder(json.JSONEncoder):
-    """"Encodes scanning args to dictionary"""
+    """"Encodes dictionary structures to json-like format"""
     def default(self, obj):
         if isinstance(obj, type(sys.stdout)):
             return str(obj)
         # Let the base class default method raise the TypeError
         return json.JSONEncoder.default(self, obj)
      
-def write_settings(args, campaignPath):
-    settingsFilepath = campaignPath+'/scan_settings.txt'     # Full path of config text file 
-    settingsDict = vars(args) # Convert arg type to dictionary            
+def write_args_json(args, filepath):
+    argsDict = vars(args) # Convert arg type to dictionary            
     #print(args)
-    #print(settingsDict) 
-    with open(settingsFilepath, 'w') as fileID:
-        fileID.write(json.dumps(settingsDict, cls=JSONEncoder))   # Write config dict to json file using custom JSONencoder
+    #print(argsDict) 
+    with open(filepath, 'w') as fileID:
+        fileID.write(json.dumps(argsDict, cls=JSONEncoder))   # Write config dict to json file using custom JSONencoder
 
-def read_settings(campaignPath):    
+def read_json(filepath):    
     # Read back the config file for error checking 
-    settingsFilepath = campaignPath+'/scan_settings.txt'     # Full path of config text file 
-    fileID = open(settingsFilepath, "r")
-    settingsContents = fileID.read()
-    settingsDictIn = json.loads(settingsContents)
+    fileID = open(filepath, "r")
+    contents = fileID.read()
+    dictIn = json.loads(contents)
     fileID.close()    
-    return settingsDictIn
+    return dictIn
+
+def write_dict_json(argsDict, filepath):
+    with open(filepath, 'w') as fileID:
+        fileID.write(json.dumps(argsDict, cls=JSONEncoder))   # Write config dict to json file using custom JSONencoder
 
 def isMonotonic(A):
     # Check if given array is Monotonic
@@ -329,9 +332,9 @@ def main():
     parser = setup_argument_parser()
     args = parser.parse_args()
     # Define paths to campaign
-    campaignPath = os.getcwd()+'/campaign'
+    campaignPath = os.getcwd()+'/campaign/'
     # Overide necessary args to acheive required campaign behaviour
-    args.output = open(campaignPath+'/output.txt', "w", encoding="utf-8")
+    args.output = open(campaignPath+'output.txt', "w", encoding="utf-8")
    
     # Setup logging
     if args.quiet:
@@ -404,20 +407,38 @@ def main():
             parser.error('argument --fft-window: --fft-window-param is required when using kaiser or tukey windows')
         args.fft_window = (args.fft_window, args.fft_window_param)
     
-    # Log scan configuration to file 
-    write_settings(args, campaignPath)
-    # Read config file back in (for debugging purposes only)  
-    #settingsDictIn = read_settings(campaignPath)
-    #print(settingsDictIn)
     
-    freq_fname = campaignPath+'/freq.txt'
-    magFull_fname = campaignPath+'/magFull.txt'
-    magMax_fname = campaignPath+'/magMax.txt'
-    magMean_fname = campaignPath+'/magMean.txt'
-    magMin_fname = campaignPath+'/magMin.txt'
-    time_fname = campaignPath+'/time.txt'
-    Nsweep = 1
-    while (Nsweep<=args.runs) or (args.endless):
+    
+    freq_fname = campaignPath+'freq.txt'
+    magFull_fname = campaignPath+'magFull.txt'
+    magMax_fname = campaignPath+'magMax.txt'
+    magMean_fname = campaignPath+'magMean.txt'
+    magMin_fname = campaignPath+'magMin.txt'
+    time_fname = campaignPath+'time.txt'
+    status_fname = campaignPath+'status.txt'
+    ctrl_fname = campaignPath+'ctrl.txt'
+    settings_fname = campaignPath+'settings.txt'
+    # Log scan configuration to file 
+    write_args_json(args, settings_fname)
+    # Read config file back in (for debugging purposes only)  
+    #settingsDictIn = read_json(campaignPath+'settings.txt')
+    #print(settingsDictIn)
+
+    statusDict = {'name'    : 'Unamed Campaign',
+                  'running' : 1,
+                  'paused'  : 0,
+                  'extFlag' : -1,
+                  'Nsweep' : 0,
+                  'start_time'  : datetime.datetime.now(),
+                  'curr_time'   : datetime.datetime.now() 
+                    }
+    write_dict_json(statusDict, status_fname)
+    
+    ctrlDict = {'run'   : 1,
+                'pause' : 0
+                }
+    
+    while (statusDict['Nsweep']<args.runs or args.endless) and ctrlDict['run']==1:
         args.output = open(args.output.name, "w", encoding="utf-8")
         # Create a new SoapyPower instance before each sweep (allows for variable SDR parameters)      
         try:
@@ -427,13 +448,13 @@ def main():
                 channel=args.channel, antenna=args.antenna, settings=args.device_settings,
                 force_sample_rate=args.force_rate, force_bandwidth=args.force_bandwidth,
                 output=args.output,
-                output_format=args.format
+                output_forma=args.format
             )
             logger.info('Using device: {}'.format(sdr.device.hardware))
         except RuntimeError:
             parser.error('No devices found!')
 
-        print('Starting sweep number %s' % (Nsweep)+' ...')
+        print('\nStarting sweep number %s' % (statusDict['Nsweep']+1)+' ...\n')
         scan_start_dtime = datetime.datetime.now()
         # Start frequency sweep
         sdr.sweep(
@@ -449,7 +470,7 @@ def main():
         scan_result = np.loadtxt(args.output.name, dtype=float, comments='#', delimiter=' ')
         freq = scan_result[:,0]
         mag_dB = scan_result[:,1]
-        if Nsweep==1:    # Initialise output files if this is the first run
+        if statusDict['Nsweep']==0:    # Initialise output files if this is the first run
             if all(i > 0 for i in freq) and isMonotonic(freq):      # Check if freq array is positive monotonic
                 freq_init = np.copy(freq) # make a copy and store as base freq vect
                 magMax_dB = np.copy(mag_dB) # Max and min spectrums initialized
@@ -466,7 +487,7 @@ def main():
                 raise ValueError('Initial scan frequency vector is invalid!')
         elif all(freq==freq_init):    # Check if current frequency vector is identical to initial
             # Calculate max, mean and min amplitudes
-            magMean_lin=(magMean_lin+lin10(mag_dB))/Nsweep
+            magMean_lin=(magMean_lin+lin10(mag_dB))/(statusDict['Nsweep']+1)
             magMax_dB[np.where(mag_dB>magMax_dB)] = mag_dB[np.where(mag_dB>magMax_dB)]
             magMin_dB[np.where(mag_dB<magMin_dB)] = mag_dB[np.where(mag_dB<magMin_dB)]
             # Save to data files
@@ -478,10 +499,38 @@ def main():
             with open(time_fname,'a') as fileID:
                 fileID.write('{}, {}\n'.format(scan_start_dtime,scan_end_dtime))
         else:
-            raise ValueError('Scan ' + str(Nsweep) + ' frequency vector does not match initial!')
+            raise ValueError('Scan ' + str(statusDict['Nsweep']) + ' frequency vector does not match initial!')
+        
+        # Update status
+        statusDict['Nsweep']=statusDict['Nsweep']+1
+        statusDict['curr_time']=datetime.datetime.now()
+        print('\nSweep %s' % statusDict['Nsweep'] + ' complete.')
+        write_dict_json(statusDict, status_fname)
+        
+        ctrlDict = read_json(ctrl_fname)
+        
+        if ctrlDict['pause']:
+            statusDict['paused']=1
+            write_dict_json(statusDict, status_fname)
+            while ctrlDict['pause']:
+                time.sleep(10)
+                ctrlDict = read_json(ctrl_fname)
+            statusDict['paused']=0
+            write_dict_json(statusDict, status_fname)
             
-        print('Sweep %s' % Nsweep + ' complete. \nWriting data to file...')
-        Nsweep=Nsweep+1
+        if ctrlDict['run']==0:
+            statusDict['extFlag']=0
+        elif not args.endless and statusDict['Nsweep']==args.runs:
+            statusDict['extFlag']=statusDict['Nsweep']
+            
+        write_dict_json(statusDict, status_fname)
+    
+    statusDict['running']=0
+    write_dict_json(statusDict, status_fname)
+    
+    
+
+            
 
 
 if __name__ == '__main__':
