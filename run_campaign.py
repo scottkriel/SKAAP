@@ -293,6 +293,8 @@ class JSONEncoder(json.JSONEncoder):
     def default(self, obj):
         if isinstance(obj, type(sys.stdout)):
             return str(obj)
+        if isinstance(obj, type(datetime.datetime.now())):
+            return str(obj)
         # Let the base class default method raise the TypeError
         return json.JSONEncoder.default(self, obj)
      
