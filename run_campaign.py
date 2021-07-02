@@ -332,7 +332,6 @@ def main():
     campaignPath = os.getcwd()+'/campaign'
     # Overide necessary args to acheive required campaign behaviour
     args.output = open(campaignPath+'/output.txt', "w", encoding="utf-8")
-    args.runs = 1
    
     # Setup logging
     if args.quiet:
@@ -385,11 +384,6 @@ def main():
         args.bins = sdr.bin_size_to_bins(args.bin_size)
     args.bins = sdr.nearest_bins(args.bins, even=args.even, pow2=args.pow2)
 
-    # if args.endless:
-    #     args.runs = 0
-    # if args.elapsed:
-    #     args.runs = 0
-
     if args.crop:
         args.overlap = args.crop
         args.crop = True
@@ -423,7 +417,7 @@ def main():
     magMin_fname = campaignPath+'/magMin.txt'
     time_fname = campaignPath+'/time.txt'
     Nsweep = 1
-    while Nsweep<10:
+    while (Nsweep<=args.runs) or (args.endless):
         args.output = open(args.output.name, "w", encoding="utf-8")
         # Create a new SoapyPower instance before each sweep (allows for variable SDR parameters)      
         try:
@@ -443,8 +437,8 @@ def main():
         scan_start_dtime = datetime.datetime.now()
         # Start frequency sweep
         sdr.sweep(
-            args.freq[0], args.freq[1], args.bins, args.repeats,
-            runs=args.runs, time_limit=args.elapsed, overlap=args.overlap, crop=args.crop,
+            args.freq[0], args.freq[1], args.bins, repeats=args.repeats,
+            runs=1, overlap=args.overlap, crop=args.crop,
             fft_window=args.fft_window, fft_overlap=args.fft_overlap / 100, log_scale=not args.linear,
             remove_dc=args.remove_dc, detrend=args.detrend if args.detrend != 'none' else None,
             lnb_lo=args.lnb_lo, tune_delay=args.tune_delay, reset_stream=args.reset_stream,
