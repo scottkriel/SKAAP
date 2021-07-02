@@ -407,9 +407,7 @@ def main():
     if args.fft_window in ('kaiser', 'tukey'):
         if args.fft_window_param is None:
             parser.error('argument --fft-window: --fft-window-param is required when using kaiser or tukey windows')
-        args.fft_window = (args.fft_window, args.fft_window_param)
-    
-    
+        args.fft_window = (args.fft_window, args.fft_window_param)   
     
     freq_fname = campaignPath+'freq.txt'
     magFull_fname = campaignPath+'magFull.txt'
@@ -442,20 +440,6 @@ def main():
     
     while (statusDict['Nsweep']<args.runs or args.endless) and ctrlDict['run']==1:
         args.output = open(args.output.name, "w", encoding="utf-8")
-        # Create a new SoapyPower instance before each sweep (allows for variable SDR parameters)      
-        try:
-            sdr = power.SoapyPower(
-                soapy_args=args.device, sample_rate=args.rate, bandwidth=args.bandwidth, corr=args.ppm,
-                gain=args.specific_gains if args.specific_gains else args.gain, auto_gain=args.agc,
-                channel=args.channel, antenna=args.antenna, settings=args.device_settings,
-                force_sample_rate=args.force_rate, force_bandwidth=args.force_bandwidth,
-                output=args.output,
-                output_format=args.format
-            )
-            logger.info('Using device: {}'.format(sdr.device.hardware))
-        except RuntimeError:
-            parser.error('No devices found!')
-
         print('\nStarting sweep number %s' % (statusDict['Nsweep']+1)+' ...\n')
         scan_start_dtime = datetime.datetime.now()
         # Start frequency sweep
@@ -531,8 +515,6 @@ def main():
     write_dict_json(statusDict, status_fname)
     
     
-
-            
 
 
 if __name__ == '__main__':
