@@ -4,8 +4,8 @@
 Created on Tue Jun 29 22:12:59 2021
 
 @author:        Scott Kriel
-Description:    Wrapper based on https://github.com/xmikos/soapy_power/blob/master/soapypower/__main__.py 
-                to handle long term scans
+Description:    Spectrum scanning software based on https://github.com/xmikos/soapy_power/blob/master/soapypower/__main__.py 
+                to handle long term measurements for the SKA Aperture Prototype (SKAAP)
     
 """
 
@@ -17,6 +17,7 @@ from soapypower import writer
 from soapypower.version import __version__
 import json
 import datetime
+import time
 
 logger = logging.getLogger(__name__)
 re_float_with_multiplier = re.compile(r'(?P<num>[-+]?(\d+(\.\d*)?|\.\d+)([eE][-+]?\d+)?)(?P<multi>[kMGT])?')
@@ -164,11 +165,11 @@ def setup_argument_parser():
                             help='center frequency or frequency range to scan, number '
                             'can be followed by a k, M or G multiplier (default: %(default)s)')
 
-    output_group = main_title.add_mutually_exclusive_group()
-    output_group.add_argument('-O', '--output', metavar='FILE', type=argparse.FileType('w'), default=sys.stdout,
-                              help='output to file (incompatible with --output-fd, default is stdout)')
-    output_group.add_argument('--output-fd', metavar='NUM', type=int, default=None,
-                              help='output to existing file descriptor (incompatible with -O)')
+    # output_group = main_title.add_mutually_exclusive_group()
+    # output_group.add_argument('-O', '--output', metavar='FILE', type=argparse.FileType('w'), default=sys.stdout,
+    #                           help='output to file (incompatible with --output-fd, default is stdout)')
+    # output_group.add_argument('--output-fd', metavar='NUM', type=int, default=None,
+    #                           help='output to existing file descriptor (incompatible with -O)')
 
     main_title.add_argument('-F', '--format', choices=sorted(writer.formats.keys()), default='rtl_power_fftw',
                             help='output format (default: %(default)s)')
@@ -288,30 +289,33 @@ def setup_argument_parser():
 
 # Start of classes/functions written by Scott Kriel
 class JSONEncoder(json.JSONEncoder):
-     def default(self, obj):
-         if isinstance(obj, type(sys.stdout)):
-             return str(obj)
-         # Let the base class default method raise the TypeError
-         return json.JSONEncoder.default(self, obj)
+    """"Encodes dictionary structures to json-like format"""
+    def default(self, obj):
+        if isinstance(obj, type(sys.stdout)):
+            return str(obj)
+        if isinstance(obj, type(datetime.datetime.now())):
+            return str(obj)
+        # Let the base class default method raise the TypeError
+        return json.JSONEncoder.default(self, obj)
      
-def write_config(args, campaignPath):
-    configFilepath = campaignPath+'/CONFIG.txt'     # Full path of config text file 
-    configDict = vars(args) # Convert arg type to dictionary         
-    
-    print(args)
-    print(configDict)
-      
-    with open(configFilepath, 'w') as fileID:
-        fileID.write(json.dumps(configDict, cls=JSONEncoder))   # Write config dict to json file using custom JSONencoder
+def write_args_json(args, filepath):
+    argsDict = vars(args) # Convert arg type to dictionary            
+    #print(args)
+    #print(argsDict) 
+    with open(filepath, 'w') as fileID:
+        fileID.write(json.dumps(argsDict, cls=JSONEncoder))   # Write config dict to json file using custom JSONencoder
 
-def read_config(campaignPath):    
+def read_json(filepath):    
     # Read back the config file for error checking 
-    configFilepath = campaignPath+'/CONFIG.txt'     # Full path of config text file 
-    fileID = open(configFilepath, "r")
-    configContents = fileID.read()
-    configDictIn = json.loads(configContents)
+    fileID = open(filepath, "r")
+    contents = fileID.read()
+    dictIn = json.loads(contents)
     fileID.close()    
-    return configDictIn
+    return dictIn
+
+def write_dict_json(argsDict, filepath):
+    with open(filepath, 'w') as fileID:
+        fileID.write(json.dumps(argsDict, cls=JSONEncoder))   # Write config dict to json file using custom JSONencoder
 
 def isMonotonic(A):
     # Check if given array is Monotonic
@@ -321,15 +325,18 @@ def isMonotonic(A):
 def lin10(dB):
     # Convert dB = 10*log10(A) to linear and return A
     return 10**(dB/10)
+def dB10(A):
+    """Returns dB = 10*log10(A)"""
+    return 10*np.log10(A)
 
 def main():
     # Parse command line arguments
     parser = setup_argument_parser()
     args = parser.parse_args()
     # Define paths to campaign
-    campaignPath = os.getcwd()+'/campaign'
+    campaignPath = os.getcwd()+'/campaign/'
     # Overide necessary args to acheive required campaign behaviour
-    args.runs = 1
+    args.output = open(campaignPath+'output.txt', "w", encoding="utf-8")
    
     # Setup logging
     if args.quiet:
@@ -367,7 +374,7 @@ def main():
             gain=args.specific_gains if args.specific_gains else args.gain, auto_gain=args.agc,
             channel=args.channel, antenna=args.antenna, settings=args.device_settings,
             force_sample_rate=args.force_rate, force_bandwidth=args.force_bandwidth,
-            output=args.output_fd if args.output_fd is not None else args.output,
+            output=args.output,
             output_format=args.format
         )
         logger.info('Using device: {}'.format(sdr.device.hardware))
@@ -381,11 +388,6 @@ def main():
     if args.bin_size:
         args.bins = sdr.bin_size_to_bins(args.bin_size)
     args.bins = sdr.nearest_bins(args.bins, even=args.even, pow2=args.pow2)
-
-    # if args.endless:
-    #     args.runs = 0
-    # if args.elapsed:
-    #     args.runs = 0
 
     if args.crop:
         args.overlap = args.crop
@@ -405,44 +407,45 @@ def main():
     if args.fft_window in ('kaiser', 'tukey'):
         if args.fft_window_param is None:
             parser.error('argument --fft-window: --fft-window-param is required when using kaiser or tukey windows')
-        args.fft_window = (args.fft_window, args.fft_window_param)
+        args.fft_window = (args.fft_window, args.fft_window_param)   
     
+    freq_fname = campaignPath+'freq.txt'
+    magFull_fname = campaignPath+'magFull.txt'
+    magMax_fname = campaignPath+'magMax.txt'
+    magMean_fname = campaignPath+'magMean.txt'
+    magMin_fname = campaignPath+'magMin.txt'
+    time_fname = campaignPath+'time.txt'
+    status_fname = campaignPath+'status.txt'
+    ctrl_fname = campaignPath+'ctrl.txt'
+    settings_fname = campaignPath+'settings.txt'
     # Log scan configuration to file 
-    write_config(args, campaignPath)
+    write_args_json(args, settings_fname)
     # Read config file back in (for debugging purposes only)  
-    #configDictIn = read_config(campaignPath)
-    #print(configDictIn)
-    
-    # Define output file names
-    freq_fname = campaignPath+'/freq.txt'
-    magFull_fname = campaignPath+'/magFull.txt'
-    magMax_fname = campaignPath+'/magMax.txt'
-    magMean_fname = campaignPath+'/magMean.txt'
-    magMin_fname = campaignPath+'/magMin.txt'
-    time_fname = campaignPath+'/time.txt'
-    Nsweep = 1
-    while Nsweep<500:
-        args.output = open(campaignPath+'/output.txt', "w", encoding="utf-8")
-        # Create a new SoapyPower instance before each sweep (allows for variable SDR parameters)
-        try:
-            sdr = power.SoapyPower(
-                soapy_args=args.device, sample_rate=args.rate, bandwidth=args.bandwidth, corr=args.ppm,
-                gain=args.specific_gains if args.specific_gains else args.gain, auto_gain=args.agc,
-                channel=args.channel, antenna=args.antenna, settings=args.device_settings,
-                force_sample_rate=args.force_rate, force_bandwidth=args.force_bandwidth,
-                output=args.output_fd if args.output_fd is not None else args.output,
-                output_format=args.format
-            )
-            logger.info('Using device: {}'.format(sdr.device.hardware))
-        except RuntimeError:
-            parser.error('No devices found!')
+    #settingsDictIn = read_json(campaignPath+'settings.txt')
+    #print(settingsDictIn)
 
-        print('Starting sweep number %s' % (Nsweep)+' ...')
+    statusDict = {'name'    : 'Unamed Campaign',
+                  'running' : 1,
+                  'paused'  : 0,
+                  'extFlag' : -1,
+                  'Nsweep' : 0,
+                  'start_time'  : datetime.datetime.now(),
+                  'curr_time'   : datetime.datetime.now() 
+                    }
+    write_dict_json(statusDict, status_fname)
+    
+    ctrlDict = {'run'   : 1,
+                'pause' : 0
+                }
+    
+    while (statusDict['Nsweep']<args.runs or args.endless) and ctrlDict['run']==1:
+        args.output = open(args.output.name, "w", encoding="utf-8")
+        print('\nStarting sweep number %s' % (statusDict['Nsweep']+1)+' ...\n')
         scan_start_dtime = datetime.datetime.now()
         # Start frequency sweep
         sdr.sweep(
-            args.freq[0], args.freq[1], args.bins, args.repeats,
-            runs=args.runs, time_limit=args.elapsed, overlap=args.overlap, crop=args.crop,
+            args.freq[0], args.freq[1], args.bins, repeats=args.repeats,
+            runs=1, overlap=args.overlap, crop=args.crop,
             fft_window=args.fft_window, fft_overlap=args.fft_overlap / 100, log_scale=not args.linear,
             remove_dc=args.remove_dc, detrend=args.detrend if args.detrend != 'none' else None,
             lnb_lo=args.lnb_lo, tune_delay=args.tune_delay, reset_stream=args.reset_stream,
@@ -453,39 +456,65 @@ def main():
         scan_result = np.loadtxt(args.output.name, dtype=float, comments='#', delimiter=' ')
         freq = scan_result[:,0]
         mag_dB = scan_result[:,1]
-        if Nsweep==1:    # Initialise output files if this is the first run
+        if statusDict['Nsweep']==0:    # Initialise output files if this is the first run
             if all(i > 0 for i in freq) and isMonotonic(freq):      # Check if freq array is positive monotonic
                 freq_init = np.copy(freq) # make a copy and store as base freq vect
                 magMax_dB = np.copy(mag_dB) # Max and min spectrums initialized
                 magMin_dB = np.copy(mag_dB)
                 magMean_lin = lin10(mag_dB) # Save mean as linear for averaging
-                np.savetxt(freq_fname, freq.reshape(1,-1), fmt='%.18e') 
-                np.savetxt(magFull_fname, mag_dB.reshape(1,-1), fmt='%.18f')
-                np.savetxt(magMax_fname, mag_dB.reshape(1,-1), fmt='%.18f')
-                np.savetxt(magMean_fname, mag_dB.reshape(1,-1), fmt='%.18f')
-                np.savetxt(magMin_fname, mag_dB.reshape(1,-1), fmt='%.18f')
+                np.savetxt(freq_fname, freq.reshape(1,-1), fmt='%.3f') 
+                np.savetxt(magFull_fname, mag_dB.reshape(1,-1), fmt='%.12f')
+                np.savetxt(magMax_fname, mag_dB.reshape(1,-1), fmt='%.12f')
+                np.savetxt(magMean_fname, mag_dB.reshape(1,-1), fmt='%.12f')
+                np.savetxt(magMin_fname, mag_dB.reshape(1,-1), fmt='%.12f')
                 with open(time_fname,'w') as fileID:
                     fileID.write('{}, {}\n'.format(scan_start_dtime,scan_end_dtime))
             else:
                 raise ValueError('Initial scan frequency vector is invalid!')
         elif all(freq==freq_init):    # Check if current frequency vector is identical to initial
             # Calculate max, mean and min amplitudes
-            magMean_lin=(magMean_lin+lin10(mag_dB))/Nsweep
+            magMean_lin=(magMean_lin+lin10(mag_dB))/(statusDict['Nsweep']+1)
             magMax_dB[np.where(mag_dB>magMax_dB)] = mag_dB[np.where(mag_dB>magMax_dB)]
             magMin_dB[np.where(mag_dB<magMin_dB)] = mag_dB[np.where(mag_dB<magMin_dB)]
             # Save to data files
-            np.savetxt(magMax_fname, magMax_dB.reshape(1,-1), fmt='%.18f')
-            np.savetxt(magMin_fname, mag_dB.reshape(1,-1), fmt='%.18f')
-            np.savetxt(magMean_fname, np.log10(magMean_lin.reshape(1,-1)), fmt='%.18f')
+            np.savetxt(magMax_fname, magMax_dB.reshape(1,-1), fmt='%.12f')
+            np.savetxt(magMin_fname, mag_dB.reshape(1,-1), fmt='%.12f')
+            np.savetxt(magMean_fname, dB10(magMean_lin.reshape(1,-1)), fmt='%.12f')
             with open(magFull_fname, "a") as fileID:    # Append scan to full magnitude data file
-                np.savetxt(fileID, mag_dB.reshape(1,-1), fmt='%.18f')
+                np.savetxt(fileID, mag_dB.reshape(1,-1), fmt='%.12f')
             with open(time_fname,'a') as fileID:
                 fileID.write('{}, {}\n'.format(scan_start_dtime,scan_end_dtime))
         else:
-            raise ValueError('Scan ' + str(Nsweep) + ' frequency vector does not match initial!')
+            raise ValueError('Scan ' + str(statusDict['Nsweep']) + ' frequency vector does not match initial!')
+        
+        # Update status
+        statusDict['Nsweep']=statusDict['Nsweep']+1
+        statusDict['curr_time']=datetime.datetime.now()
+        print('\nSweep %s' % statusDict['Nsweep'] + ' complete.')
+        write_dict_json(statusDict, status_fname)
+        
+        ctrlDict = read_json(ctrl_fname)
+        
+        if ctrlDict['pause']:
+            statusDict['paused']=1
+            write_dict_json(statusDict, status_fname)
+            while ctrlDict['pause']:
+                time.sleep(10)
+                ctrlDict = read_json(ctrl_fname)
+            statusDict['paused']=0
+            write_dict_json(statusDict, status_fname)
             
-        print('Sweep %s' % Nsweep + ' complete. \nWriting data to file...')
-        Nsweep=Nsweep+1
+        if ctrlDict['run']==0:
+            statusDict['extFlag']=0
+        elif not args.endless and statusDict['Nsweep']==args.runs:
+            statusDict['extFlag']=statusDict['Nsweep']
+            
+        write_dict_json(statusDict, status_fname)
+    
+    statusDict['running']=0
+    write_dict_json(statusDict, status_fname)
+    
+    
 
 
 if __name__ == '__main__':
