@@ -336,7 +336,7 @@ def main():
     # Define paths to campaign
     campaignPath = os.getcwd()+'/campaign/'
     # Overide necessary args to acheive required campaign behaviour
-    args.output = open(campaignPath+'output.txt', "w", encoding="utf-8")
+    output_fid = open(campaignPath+'output.txt', "w", encoding="utf-8")
    
     # Setup logging
     if args.quiet:
@@ -374,7 +374,7 @@ def main():
             gain=args.specific_gains if args.specific_gains else args.gain, auto_gain=args.agc,
             channel=args.channel, antenna=args.antenna, settings=args.device_settings,
             force_sample_rate=args.force_rate, force_bandwidth=args.force_bandwidth,
-            output=args.output,
+            output=output_fid,
             output_format=args.format
         )
         logger.info('Using device: {}'.format(sdr.device.hardware))
@@ -424,8 +424,7 @@ def main():
     #settingsDictIn = read_json(campaignPath+'settings.txt')
     #print(settingsDictIn)
 
-    statusDict = {'name'    : 'Unamed Campaign',
-                  'running' : 1,
+    statusDict = {'running' : 1,
                   'paused'  : 0,
                   'extFlag' : -1,
                   'Nsweep' : 0,
@@ -439,7 +438,22 @@ def main():
                 }
     
     while (statusDict['Nsweep']<args.runs or args.endless) and ctrlDict['run']==1:
-        args.output = open(args.output.name, "w", encoding="utf-8")
+        output_fid = open(campaignPath+'output.txt', "w", encoding="utf-8")
+        # Recreate SoapyPower instance for each sweep. This avoids IO error 
+        # and allows changing arguments in between sweeps
+        try:
+            sdr = power.SoapyPower(
+                soapy_args=args.device, sample_rate=args.rate, bandwidth=args.bandwidth, corr=args.ppm,
+                gain=args.specific_gains if args.specific_gains else args.gain, auto_gain=args.agc,
+                channel=args.channel, antenna=args.antenna, settings=args.device_settings,
+                force_sample_rate=args.force_rate, force_bandwidth=args.force_bandwidth,
+                output=output_fid,
+                output_format=args.format
+            )
+            logger.info('Using device: {}'.format(sdr.device.hardware))
+        except RuntimeError:
+            parser.error('No devices found!')
+
         print('\nStarting sweep number %s' % (statusDict['Nsweep']+1)+' ...\n')
         scan_start_dtime = datetime.datetime.now()
         # Start frequency sweep
@@ -453,7 +467,7 @@ def main():
             max_threads=args.max_threads, max_queue_size=args.max_queue_size
         )
         scan_end_dtime = datetime.datetime.now()
-        scan_result = np.loadtxt(args.output.name, dtype=float, comments='#', delimiter=' ')
+        scan_result = np.loadtxt(output_fid.name, dtype=float, comments='#', delimiter=' ')
         freq = scan_result[:,0]
         mag_dB = scan_result[:,1]
         if statusDict['Nsweep']==0:    # Initialise output files if this is the first run
