@@ -164,7 +164,8 @@ def setup_argument_parser():
     main_title.add_argument('-f', '--freq', metavar='Hz|Hz:Hz', type=freq_or_freq_range, default='1420405752',
                             help='center frequency or frequency range to scan, number '
                             'can be followed by a k, M or G multiplier (default: %(default)s)')
-
+    
+    # Commented this out as we want standard output location
     # output_group = main_title.add_mutually_exclusive_group()
     # output_group.add_argument('-O', '--output', metavar='FILE', type=argparse.FileType('w'), default=sys.stdout,
     #                           help='output to file (incompatible with --output-fd, default is stdout)')
@@ -306,7 +307,7 @@ def write_args_json(args, filepath):
         fileID.write(json.dumps(argsDict, cls=JSONEncoder))   # Write config dict to json file using custom JSONencoder
 
 def read_json(filepath):    
-    # Read back the config file for error checking 
+    """Read json file struct into dictionary"""
     fileID = open(filepath, "r")
     contents = fileID.read()
     dictIn = json.loads(contents)
@@ -318,12 +319,12 @@ def write_dict_json(argsDict, filepath):
         fileID.write(json.dumps(argsDict, cls=JSONEncoder))   # Write config dict to json file using custom JSONencoder
 
 def isMonotonic(A):
-    # Check if given array is Monotonic
+    """Check if given array is Monotonic"""
     return (all(A[i] <= A[i + 1] for i in range(len(A) - 1)) or
             all(A[i] >= A[i + 1] for i in range(len(A) - 1)))
 
 def lin10(dB):
-    # Convert dB = 10*log10(A) to linear and return A
+    """Convert dB = 10*log10(A) to linear and return A"""
     return 10**(dB/10)
 def dB10(A):
     """Returns dB = 10*log10(A)"""
@@ -409,6 +410,7 @@ def main():
             parser.error('argument --fft-window: --fft-window-param is required when using kaiser or tukey windows')
         args.fft_window = (args.fft_window, args.fft_window_param)   
     
+    # Define full file paths
     freq_fname = campaignPath+'freq.txt'
     magFull_fname = campaignPath+'magFull.txt'
     magMax_fname = campaignPath+'magMax.txt'
@@ -420,10 +422,7 @@ def main():
     settings_fname = campaignPath+'settings.txt'
     # Log scan configuration to file 
     write_args_json(args, settings_fname)
-    # Read config file back in (for debugging purposes only)  
-    #settingsDictIn = read_json(campaignPath+'settings.txt')
-    #print(settingsDictIn)
-
+    # Set up dictionary to contain status variables
     statusDict = {'running' : 1,
                   'paused'  : 0,
                   'extFlag' : -1,
@@ -431,12 +430,11 @@ def main():
                   'start_time'  : datetime.datetime.now(),
                   'curr_time'   : datetime.datetime.now() 
                     }
+    # Write status to file so it can be read by client
     write_dict_json(statusDict, status_fname)
-    
-    ctrlDict = {'run'   : 1,
-                'pause' : 0
-                }
-    
+    # Read in control file which can be manipulated by client
+    ctrlDict = read_json(ctrl_fname)
+    # Start scan loop
     while (statusDict['Nsweep']<args.runs or args.endless) and ctrlDict['run']==1:
         output_fid = open(campaignPath+'output.txt', "w", encoding="utf-8")
         # Recreate SoapyPower instance for each sweep. This avoids IO error 
@@ -477,10 +475,10 @@ def main():
                 magMin_dB = np.copy(mag_dB)
                 magMean_lin = lin10(mag_dB) # Save mean as linear for averaging
                 np.savetxt(freq_fname, freq.reshape(1,-1), fmt='%.3f') 
-                np.savetxt(magFull_fname, mag_dB.reshape(1,-1), fmt='%.12f')
-                np.savetxt(magMax_fname, mag_dB.reshape(1,-1), fmt='%.12f')
-                np.savetxt(magMean_fname, mag_dB.reshape(1,-1), fmt='%.12f')
-                np.savetxt(magMin_fname, mag_dB.reshape(1,-1), fmt='%.12f')
+                np.savetxt(magFull_fname, mag_dB.reshape(1,-1), fmt='%.6f')
+                np.savetxt(magMax_fname, mag_dB.reshape(1,-1), fmt='%.6f')
+                np.savetxt(magMean_fname, mag_dB.reshape(1,-1), fmt='%.6f')
+                np.savetxt(magMin_fname, mag_dB.reshape(1,-1), fmt='%.6f')
                 with open(time_fname,'w') as fileID:
                     fileID.write('{}, {}\n'.format(scan_start_dtime,scan_end_dtime))
             else:
@@ -491,11 +489,11 @@ def main():
             magMax_dB[np.where(mag_dB>magMax_dB)] = mag_dB[np.where(mag_dB>magMax_dB)]
             magMin_dB[np.where(mag_dB<magMin_dB)] = mag_dB[np.where(mag_dB<magMin_dB)]
             # Save to data files
-            np.savetxt(magMax_fname, magMax_dB.reshape(1,-1), fmt='%.12f')
-            np.savetxt(magMin_fname, mag_dB.reshape(1,-1), fmt='%.12f')
-            np.savetxt(magMean_fname, dB10(magMean_lin.reshape(1,-1)), fmt='%.12f')
+            np.savetxt(magMax_fname, magMax_dB.reshape(1,-1), fmt='%.6f')
+            np.savetxt(magMin_fname, mag_dB.reshape(1,-1), fmt='%.6f')
+            np.savetxt(magMean_fname, dB10(magMean_lin.reshape(1,-1)), fmt='%.6f')
             with open(magFull_fname, "a") as fileID:    # Append scan to full magnitude data file
-                np.savetxt(fileID, mag_dB.reshape(1,-1), fmt='%.12f')
+                np.savetxt(fileID, mag_dB.reshape(1,-1), fmt='%.6f')
             with open(time_fname,'a') as fileID:
                 fileID.write('{}, {}\n'.format(scan_start_dtime,scan_end_dtime))
         else:
@@ -507,8 +505,8 @@ def main():
         print('\nSweep %s' % statusDict['Nsweep'] + ' complete.')
         write_dict_json(statusDict, status_fname)
         
+        # Read in control file to decide what to do next
         ctrlDict = read_json(ctrl_fname)
-        
         if ctrlDict['pause']:
             statusDict['paused']=1
             write_dict_json(statusDict, status_fname)
@@ -516,8 +514,7 @@ def main():
                 time.sleep(10)
                 ctrlDict = read_json(ctrl_fname)
             statusDict['paused']=0
-            write_dict_json(statusDict, status_fname)
-            
+            write_dict_json(statusDict, status_fname)         
         if ctrlDict['run']==0:
             statusDict['extFlag']=0
         elif not args.endless and statusDict['Nsweep']==args.runs:
