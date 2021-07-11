@@ -310,6 +310,7 @@ def read_json(filepath):
     """Read json file struct into dictionary"""
     fileID = open(filepath, "r")
     contents = fileID.read()
+    contents = contents.replace("'","\"") # Change single quote to double to match json syntax
     dictIn = json.loads(contents)
     fileID.close()    
     return dictIn
@@ -428,7 +429,8 @@ def main():
                   'extFlag' : -1,
                   'Nsweep' : 0,
                   'start_time'  : datetime.datetime.now(),
-                  'curr_time'   : datetime.datetime.now() 
+                  'curr_time'   : datetime.datetime.now(),
+                  'PID'     : os.getpid()
                     }
     # Write status to file so it can be read by client
     write_dict_json(statusDict, status_fname)
