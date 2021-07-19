@@ -513,7 +513,7 @@ def main():
             statusDict['paused']=1
             write_dict_json(statusDict, status_fname)
             while ctrlDict['pause']:
-                time.sleep(10)
+                time.sleep(30)
                 ctrlDict = read_json(ctrl_fname)
             statusDict['paused']=0
             write_dict_json(statusDict, status_fname)         
